@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель Ведущего - Свояк</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/host.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body class="host-body">
+    <header class="host-header">
+        <h2>Своя Игра <span class="badge">Ведущий</span></h2>
+        <div id="host-status" class="host-status disconnected">Ожидание игроков...</div>
+    </header>
+
+    <div class="host-layout">
+        <div class="host-main">
+            <!-- Host Board Screen -->
+            <div id="host-board-screen" class="screen host-screen active">
+                <div id="host-grid" class="grid host-grid">
+                    <!-- Host Grid -->
+                </div>
+            </div>
+
+            <!-- Host Question Screen -->
+            <div id="host-question-screen" class="screen host-screen hidden">
+                <div class="q-header">
+                    <h3 id="host-q-category">Категория</h3>
+                    <div class="q-price glow-text gold" id="host-q-price">100</div>
+                </div>
+                
+                <div class="q-card">
+                    <div class="label">Вопрос:</div>
+                    <p id="host-q-text">Текст вопроса...</p>
+                </div>
+                
+                <div class="a-card">
+                    <div class="label">Правильный ответ:</div>
+                    <p id="host-q-answer">Текст ответа...</p>
+                </div>
+                
+                <div class="host-controls">
+                    <div class="control-group">
+                        <h4 class="label">Таймер</h4>
+                        <div class="btn-row mb-10">
+                            <select id="timer-val" class="full-width" style="padding: 12px; background: #000; color: #fff; border: 1px solid var(--panel-border); border-radius: 8px;">
+                                <option value="15">15 сек</option>
+                                <option value="30" selected>30 сек</option>
+                                <option value="60">60 сек</option>
+                            </select>
+                        </div>
+                        <div class="btn-row">
+                            <button class="btn primary full-width" id="start-timer-btn">Запустить</button>
+                            <button class="btn danger full-width" id="stop-timer-btn">Сбросить</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h4 class="label">Действия на экране</h4>
+                        <button class="btn success full-width mb-10" id="show-answer-btn">Показать ответ игрокам</button>
+                        <button class="btn primary full-width mb-10" id="nobody-answered-btn" style="background: #333; color: #fff; border-color: #555;">Никто не ответил</button>
+                        <button id="close-question-btn" class="btn secondary full-width">Вернуться к табло</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="host-sidebar">
+            <h3>Очки игроков</h3>
+            <div id="sidebar-players-list" class="sidebar-players">
+                <!-- Players will be listed here with quick +/- buttons -->
+            </div>
+
+            <div class="effects-panel mb-10">
+                <h4 class="label">Спецэффекты</h4>
+                <div class="btn-row">
+                    <button class="btn success full-width" onclick="triggerEffect('correct')" style="font-size: 0.8rem; padding: 10px;">Верно</button>
+                    <button class="btn danger full-width" onclick="triggerEffect('wrong')" style="font-size: 0.8rem; padding: 10px;">Мимо</button>
+                    <button class="btn primary full-width" onclick="triggerEffect('applause')" style="font-size: 0.8rem; padding: 10px;">Овации</button>
+                </div>
+            </div>
+
+            <div class="manual-score-adjust mt-auto">
+                <h4 class="label">Ручное управление баллами</h4>
+                <select id="manual-player-select" class="full-width mb-10"></select>
+                <input type="number" id="manual-score-input" class="full-width mb-10" placeholder="Произвольные баллы" value="100">
+                <div class="btn-row">
+                    <button class="btn danger full-width" id="manual-minus-btn">- Списать</button>
+                    <button class="btn success full-width" id="manual-plus-btn">+ Начислить</button>
+                </div>
+                <button id="reset-game-btn" class="btn secondary full-width mt-20" style="opacity: 0.8;">Завершить игру</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/host.js"></script>
+</body>
+</html>

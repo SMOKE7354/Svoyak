@@ -1,1 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Свояк - Игровой экран</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Lobby Screen -->
+    <div id="lobby-screen" class="screen active">
+        <div class="glass-panel lobby-panel">
+            <h1 class="glow-text">СВОЯ ИГРА</h1>
+            <p class="subtitle">Подготовка к игре</p>
+            <div class="players-setup">
+                <input type="text" id="player-input" placeholder="Имя игрока" autocomplete="off">
+                <button id="add-player-btn" class="btn primary">Добавить</button>
+            </div>
+            <ul id="players-list"></ul>
+            <div class="actions">
+                <button id="start-game-btn" class="btn success" disabled>Начать игру</button>
+                <a href="host.html" target="_blank" class="btn secondary">Открыть панель ведущего</a>
+            </div>
+        </div>
+    </div>
 
+    <!-- Game Board Screen -->
+    <div id="board-screen" class="screen hidden">
+        <div class="board-container">
+            <div id="grid" class="grid">
+                <!-- Grid will be generated here -->
+            </div>
+        </div>
+        <div id="players-scores" class="players-scores">
+            <!-- Player scores will be generated here -->
+        </div>
+    </div>
+
+    <!-- Question Screen -->
+    <div id="question-screen" class="screen hidden">
+        <div class="question-container glass-panel">
+            <div id="question-type" class="question-type hidden">Кот в мешке!</div>
+            <h2 id="question-price" class="glow-text gold">100</h2>
+            <img id="question-image" class="question-image hidden" src="" alt="Вопрос">
+            <p id="question-text" class="question-text">Текст вопроса будет здесь...</p>
+            <p id="question-answer-display" class="question-answer hidden"></p>
+            <div id="timer-display" class="timer-display hidden">30</div>
+        </div>
+        <div id="players-scores-question" class="players-scores">
+            <!-- Player scores clone -->
+        </div>
+    </div>
+
+    <!-- Effects Overlay -->
+    <div id="effects-overlay" class="effects-overlay hidden"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
