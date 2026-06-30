@@ -3,98 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель Ведущего - Свояк</title>
+    <title>Панель ведущего — Свояк</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/host.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body class="host-body">
     <header class="host-header">
-        <h2>Своя Игра <span class="badge">Ведущий</span></h2>
-        <div id="host-status" class="host-status disconnected">Ожидание игроков...</div>
+        <div class="host-header-left">
+            <h2>Своя Игра <span class="badge">Ведущий</span></h2>
+            <div id="host-round-indicator" class="host-round-indicator">Лобби</div>
+        </div>
+        <div class="host-header-right">
+            <div id="host-room-box" class="host-room-box">
+                <span class="room-label">Код для табло:</span>
+                <span id="host-room-code" class="host-room-code">------</span>
+                <button id="copy-room-btn" class="btn-copy" title="Скопировать код">📋</button>
+                <button id="copy-link-btn" class="btn-copy" title="Скопировать ссылку">🔗</button>
+            </div>
+            <div id="host-progress" class="host-progress hidden"></div>
+            <div id="host-status" class="host-status disconnected">Табло не подключено</div>
+        </div>
     </header>
 
-    <div class="host-layout">
-        <div class="host-main">
-            <!-- Host Board Screen -->
-            <div id="host-board-screen" class="screen host-screen active">
-                <div id="host-grid" class="grid host-grid">
-                    <!-- Host Grid -->
-                </div>
-            </div>
+    <!-- Lobby -->
+    <div id="host-lobby-screen" class="host-fullscreen active">
+        <div class="host-lobby-panel glass-panel">
+            <h1 class="glow-text">Панель ведущего</h1>
+            <p class="subtitle">Добавьте игроков и запустите раунды. На втором ноутбуке или TV откройте <code>index.html</code> и введите код комнаты сверху.</p>
 
-            <!-- Host Question Screen -->
-            <div id="host-question-screen" class="screen host-screen hidden">
-                <div class="q-header">
-                    <h3 id="host-q-category">Категория</h3>
-                    <div class="q-price glow-text gold" id="host-q-price">100</div>
-                </div>
-                
-                <div class="q-card">
-                    <div class="label">Вопрос:</div>
-                    <p id="host-q-text">Текст вопроса...</p>
-                </div>
-                
-                <div class="a-card">
-                    <div class="label">Правильный ответ:</div>
-                    <p id="host-q-answer">Текст ответа...</p>
-                </div>
-                
-                <div class="host-controls">
-                    <div class="control-group">
-                        <h4 class="label">Таймер</h4>
-                        <div class="btn-row mb-10">
-                            <select id="timer-val" class="full-width" style="padding: 12px; background: #000; color: #fff; border: 1px solid var(--panel-border); border-radius: 8px;">
-                                <option value="15">15 сек</option>
-                                <option value="30" selected>30 сек</option>
-                                <option value="60">60 сек</option>
-                            </select>
-                        </div>
-                        <div class="btn-row">
-                            <button class="btn primary full-width" id="start-timer-btn">Запустить</button>
-                            <button class="btn danger full-width" id="stop-timer-btn">Сбросить</button>
-                        </div>
-                    </div>
-                    
-                    <div class="control-group">
-                        <h4 class="label">Действия на экране</h4>
-                        <button class="btn success full-width mb-10" id="show-answer-btn">Показать ответ игрокам</button>
-                        <button class="btn primary full-width mb-10" id="nobody-answered-btn" style="background: #333; color: #fff; border-color: #555;">Никто не ответил</button>
-                        <button id="close-question-btn" class="btn secondary full-width">Вернуться к табло</button>
-                    </div>
-                </div>
+            <div class="lobby-setup-row">
+                <input type="text" id="player-input" placeholder="Имя игрока" autocomplete="off">
+                <button id="add-player-btn" class="btn primary">Добавить</button>
             </div>
-        </div>
+            <ul id="players-list" class="host-players-list"></ul>
 
-        <div class="host-sidebar">
-            <h3>Очки игроков</h3>
-            <div id="sidebar-players-list" class="sidebar-players">
-                <!-- Players will be listed here with quick +/- buttons -->
-            </div>
-
-            <div class="effects-panel mb-10">
-                <h4 class="label">Спецэффекты</h4>
-                <div class="btn-row">
-                    <button class="btn success full-width" onclick="triggerEffect('correct')" style="font-size: 0.8rem; padding: 10px;">Верно</button>
-                    <button class="btn danger full-width" onclick="triggerEffect('wrong')" style="font-size: 0.8rem; padding: 10px;">Мимо</button>
-                    <button class="btn primary full-width" onclick="triggerEffect('applause')" style="font-size: 0.8rem; padding: 10px;">Овации</button>
+            <div class="round-launch-panel">
+                <h3>Запуск раундов</h3>
+                <div class="round-buttons">
+                    <button id="start-round-1" class="btn round-btn" data-round="1" disabled>
+                        <span class="round-btn-num">1</span>
+                        <span class="round-btn-label">Раунд 1<br><small>100–500</small></span>
+                    </button>
+                    <button id="start-round-2" class="btn round-btn" data-round="2" disabled>
+                        <span class="round-btn-num">2</span>
+                        <span class="round-btn-label">Раунд 2<br><small>200–1000</small></span>
+                    </button>
+                    <button id="start-round-3" class="btn round-btn" data-round="3" disabled>
+                        <span class="round-btn-num">3</span>
+                        <span class="round-btn-label">Раунд 3<br><small>500–2500</small></span>
+                    </button>
                 </div>
-            </div>
-
-            <div class="manual-score-adjust mt-auto">
-                <h4 class="label">Ручное управление баллами</h4>
-                <select id="manual-player-select" class="full-width mb-10"></select>
-                <input type="number" id="manual-score-input" class="full-width mb-10" placeholder="Произвольные баллы" value="100">
-                <div class="btn-row">
-                    <button class="btn danger full-width" id="manual-minus-btn">- Списать</button>
-                    <button class="btn success full-width" id="manual-plus-btn">+ Начислить</button>
-                </div>
-                <button id="reset-game-btn" class="btn secondary full-width mt-20" style="opacity: 0.8;">Завершить игру</button>
+                <p id="round-hint" class="round-hint">Добавьте хотя бы одного игрока</p>
             </div>
         </div>
     </div>
 
+    <!-- Game control -->
+    <div id="host-game-screen" class="host-fullscreen hidden">
+        <div class="host-layout">
+            <aside class="host-sidebar host-sidebar-left">
+                <div class="sidebar-section">
+                    <h3>Игроки</h3>
+                    <div id="sidebar-players-list" class="sidebar-players"></div>
+                </div>
+
+                <div class="sidebar-section effects-panel">
+                    <h4 class="label">Эффекты на экране</h4>
+                    <div class="effects-grid">
+                        <button class="btn success" onclick="triggerEffect('correct')">✓ Верно</button>
+                        <button class="btn danger" onclick="triggerEffect('wrong')">✗ Мимо</button>
+                        <button class="btn primary" onclick="triggerEffect('applause')">👏 Браво</button>
+                    </div>
+                </div>
+
+                <div class="sidebar-section manual-score-adjust">
+                    <h4 class="label">Ручные баллы</h4>
+                    <select id="manual-player-select" class="full-width mb-10"></select>
+                    <input type="number" id="manual-score-input" class="full-width mb-10" value="100">
+                    <div class="btn-row">
+                        <button class="btn danger full-width" id="manual-minus-btn">−</button>
+                        <button class="btn success full-width" id="manual-plus-btn">+</button>
+                    </div>
+                </div>
+
+                <div class="sidebar-section sidebar-actions">
+                    <button id="end-round-btn" class="btn secondary full-width mb-10">Завершить раунд</button>
+                    <button id="reset-game-btn" class="btn danger-outline full-width">Новая игра</button>
+                </div>
+            </aside>
+
+            <main class="host-main">
+                <!-- Board -->
+                <div id="host-board-screen" class="host-screen active">
+                    <div class="host-board-top">
+                        <h3 id="host-board-title">Табло</h3>
+                        <span id="host-board-progress" class="host-board-progress"></span>
+                    </div>
+                    <div id="host-grid" class="grid host-grid"></div>
+                </div>
+
+                <!-- Question -->
+                <div id="host-question-screen" class="host-screen hidden">
+                    <div class="q-header">
+                        <div>
+                            <h3 id="host-q-category">Категория</h3>
+                            <div class="q-price glow-text gold" id="host-q-price">100</div>
+                        </div>
+                        <div id="host-timer-badge" class="host-timer-badge hidden">⏱ <span id="host-timer-val">30</span></div>
+                    </div>
+
+                    <div class="q-card">
+                        <div class="label">Вопрос</div>
+                        <p id="host-q-text">…</p>
+                    </div>
+
+                    <div class="a-card">
+                        <div class="label">Ответ (только для вас)</div>
+                        <p id="host-q-answer">…</p>
+                    </div>
+
+                    <div class="host-controls-compact">
+                        <div class="control-group">
+                            <h4 class="label">Таймер</h4>
+                            <div class="timer-row">
+                                <select id="timer-val">
+                                    <option value="10">10 сек</option>
+                                    <option value="15">15 сек</option>
+                                    <option value="30" selected>30 сек</option>
+                                    <option value="45">45 сек</option>
+                                    <option value="60">60 сек</option>
+                                </select>
+                                <button class="btn primary" id="start-timer-btn">▶ Старт</button>
+                                <button class="btn secondary" id="stop-timer-btn">↺ Сброс</button>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h4 class="label">Действия</h4>
+                            <div class="action-buttons">
+                                <button class="btn success" id="show-answer-btn">Показать ответ</button>
+                                <button class="btn neutral" id="nobody-answered-btn">Никто не ответил</button>
+                                <button class="btn primary" id="close-question-btn">← К табло</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="quick-score-panel" class="quick-score-panel hidden">
+                        <h4 class="label">Быстрое начисление</h4>
+                        <div id="quick-score-buttons" class="quick-score-buttons"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="js/data.js"></script>
+    <script src="js/sync.js"></script>
     <script src="js/host.js"></script>
 </body>
 </html>

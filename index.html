@@ -3,59 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Свояк - Игровой экран</title>
+    <title>Свояк — Игровой экран</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
-<body>
-    <!-- Lobby Screen -->
-    <div id="lobby-screen" class="screen active">
-        <div class="glass-panel lobby-panel">
+<body class="display-body">
+    <!-- Connect Screen -->
+    <div id="connect-screen" class="screen active">
+        <div class="display-wait glass-panel">
             <h1 class="glow-text">СВОЯ ИГРА</h1>
-            <p class="subtitle">Подготовка к игре</p>
-            <div class="players-setup">
-                <input type="text" id="player-input" placeholder="Имя игрока" autocomplete="off">
-                <button id="add-player-btn" class="btn primary">Добавить</button>
+            <p class="subtitle display-hint">Экран для зрителей</p>
+            <div class="room-join">
+                <label for="room-code-input">Код комнаты от ведущего</label>
+                <div class="room-join-row">
+                    <input type="text" id="room-code-input" placeholder="ABC123" maxlength="6" autocomplete="off">
+                    <button id="connect-btn" class="btn primary">Подключиться</button>
+                </div>
+                <p id="connect-status" class="connect-status"></p>
             </div>
-            <ul id="players-list"></ul>
-            <div class="actions">
-                <button id="start-game-btn" class="btn success" disabled>Начать игру</button>
-                <a href="host.html" target="_blank" class="btn secondary">Открыть панель ведущего</a>
-            </div>
+            <p class="setup-tip">Ведущий видит код на панели <strong>host.html</strong>. Оба ноутбука должны быть в интернете.</p>
         </div>
     </div>
 
-    <!-- Game Board Screen -->
-    <div id="board-screen" class="screen hidden">
-        <div class="board-container">
-            <div id="grid" class="grid">
-                <!-- Grid will be generated here -->
+    <!-- Waiting Screen (TV) -->
+    <div id="lobby-screen" class="screen hidden">
+        <div class="display-wait glass-panel">
+            <h1 class="glow-text">СВОЯ ИГРА</h1>
+            <p class="subtitle display-hint">Экран для зрителей</p>
+            <div id="display-status" class="display-status">
+                <div class="pulse-dot"></div>
+                <span>Ожидание ведущего…</span>
             </div>
+            <div id="display-players-preview" class="display-players-preview hidden"></div>
+            <p class="setup-tip">Подключено к комнате <strong id="display-room-code">—</strong></p>
         </div>
-        <div id="players-scores" class="players-scores">
-            <!-- Player scores will be generated here -->
+    </div>
+
+    <!-- Round Announcement -->
+    <div id="round-screen" class="screen hidden">
+        <div class="round-splash">
+            <div id="round-number" class="round-number">1</div>
+            <h1 id="round-title" class="glow-text">Раунд 1</h1>
+            <p id="round-subtitle" class="round-subtitle">Разминка</p>
         </div>
+    </div>
+
+    <!-- Game Board -->
+    <div id="board-screen" class="screen hidden">
+        <div class="board-header">
+            <span id="board-round-badge" class="round-badge">Раунд 1</span>
+        </div>
+        <div class="board-container">
+            <div id="grid" class="grid"></div>
+        </div>
+        <div id="players-scores" class="players-scores"></div>
     </div>
 
     <!-- Question Screen -->
     <div id="question-screen" class="screen hidden">
         <div class="question-container glass-panel">
-            <div id="question-type" class="question-type hidden">Кот в мешке!</div>
+            <div id="question-category" class="question-category"></div>
             <h2 id="question-price" class="glow-text gold">100</h2>
-            <img id="question-image" class="question-image hidden" src="" alt="Вопрос">
-            <p id="question-text" class="question-text">Текст вопроса будет здесь...</p>
+            <img id="question-image" class="question-image hidden" src="" alt="">
+            <p id="question-text" class="question-text">Текст вопроса…</p>
             <p id="question-answer-display" class="question-answer hidden"></p>
             <div id="timer-display" class="timer-display hidden">30</div>
         </div>
-        <div id="players-scores-question" class="players-scores">
-            <!-- Player scores clone -->
+        <div id="players-scores-question" class="players-scores"></div>
+    </div>
+
+    <!-- Game Over -->
+    <div id="finale-screen" class="screen hidden">
+        <div class="finale-panel glass-panel">
+            <h1 class="glow-text">ИГРА ОКОНЧЕНА</h1>
+            <div id="finale-winners" class="finale-winners"></div>
         </div>
     </div>
 
-    <!-- Effects Overlay -->
     <div id="effects-overlay" class="effects-overlay hidden"></div>
 
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="js/data.js"></script>
+    <script src="js/sync.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
