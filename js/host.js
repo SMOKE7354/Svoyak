@@ -30,25 +30,28 @@ const manualPlayerSelect = document.getElementById('manual-player-select');
 const manualScoreInput = document.getElementById('manual-score-input');
 const hostStatus = document.getElementById('host-status');
 const hostRoomCode = document.getElementById('host-room-code');
+const hostSyncHint = document.getElementById('host-sync-hint');
 
 function init() {
     state = gameSync.load();
     setupEventListeners();
 
+    if (hostRoomCode) hostRoomCode.textContent = gameSync.getRoomCode();
+
     gameSync.initHost({
-        onReady: (code) => {
-            if (hostRoomCode) hostRoomCode.textContent = code;
+        onReady: (_code, mode) => {
             updateHostConnectionStatus(false);
+            if (hostSyncHint) {
+                hostSyncHint.textContent = gameSync.getSyncHint(mode);
+            }
         },
         onDisplayConnected: () => updateHostConnectionStatus(true),
-        onDisplayDisconnected: () => updateHostConnectionStatus(false),
-        onError: () => updateHostConnectionStatus(false)
+        onDisplayDisconnected: () => updateHostConnectionStatus(false)
     }).catch(() => {
-        if (hostRoomCode) hostRoomCode.textContent = 'Ошибка';
-        if (hostStatus) {
-            hostStatus.textContent = 'Нет интернета — только один ноутбук';
-            hostStatus.className = 'host-status disconnected';
+        if (hostSyncHint) {
+            hostSyncHint.textContent = 'Локальный режим — работает на одном компьютере (два окна)';
         }
+        updateHostConnectionStatus(false);
     });
 
     renderAll();
@@ -91,15 +94,6 @@ function setupEventListeners() {
     document.getElementById('stop-timer-btn').addEventListener('click', stopTimer);
     document.getElementById('manual-plus-btn').addEventListener('click', () => adjustManualScore(1));
     document.getElementById('manual-minus-btn').addEventListener('click', () => adjustManualScore(-1));
-
-    document.getElementById('copy-room-btn')?.addEventListener('click', () => {
-        if (gameSync.roomCode) {
-            navigator.clipboard.writeText(gameSync.roomCode);
-        }
-    });
-    document.getElementById('copy-link-btn')?.addEventListener('click', () => {
-        navigator.clipboard.writeText(gameSync.getDisplayUrl());
-    });
 
     document.addEventListener('keydown', (e) => {
         if (state.screen !== 'question' || !state.currentQuestion) return;

@@ -5,10 +5,8 @@ let connected = false;
 let subscribed = false;
 
 const connectScreen = document.getElementById('connect-screen');
-const roomCodeInput = document.getElementById('room-code-input');
 const connectBtn = document.getElementById('connect-btn');
 const connectStatus = document.getElementById('connect-status');
-const displayRoomCode = document.getElementById('display-room-code');
 
 const screens = {
     lobby: document.getElementById('lobby-screen'),
@@ -38,69 +36,48 @@ const finaleWinners = document.getElementById('finale-winners');
 
 function init() {
     setupConnectUI();
-
-    const params = new URLSearchParams(window.location.search);
-    const roomFromUrl = params.get('room');
-    if (roomFromUrl) {
-        roomCodeInput.value = roomFromUrl;
-        connectToRoom(roomFromUrl);
-    }
 }
 
 function setupConnectUI() {
-    connectBtn.addEventListener('click', () => connectToRoom(roomCodeInput.value));
-    roomCodeInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') connectToRoom(roomCodeInput.value);
-    });
-    roomCodeInput.addEventListener('input', () => {
-        roomCodeInput.value = gameSync.normalizeCode(roomCodeInput.value);
-    });
+    connectBtn.addEventListener('click', connectToGame);
 }
 
-function connectToRoom(code) {
-    const normalized = gameSync.normalizeCode(code);
-    if (normalized.length < 4) {
-        connectStatus.textContent = 'Введите код комнаты (4–6 символов)';
-        connectStatus.className = 'connect-status error';
-        return;
-    }
-
+function connectToGame() {
     connectBtn.disabled = true;
     connectStatus.textContent = 'Подключение…';
     connectStatus.className = 'connect-status';
 
-    gameSync.initDisplay(normalized, {
+    gameSync.initDisplay(gameSync.getRoomCode(), {
         onState: (newState) => {
             if (!connected) {
                 connected = true;
-                hideConnectScreen(normalized);
+                hideConnectScreen();
             }
             onStateUpdate(newState);
         },
-        onConnected: (room) => {
+        onConnected: () => {
             connected = true;
-            hideConnectScreen(room);
+            hideConnectScreen();
         },
         onDisconnected: () => {
             connected = false;
-            showConnectScreen('Связь с ведущим потеряна. Подключитесь снова.');
+            showConnectScreen('Связь с ведущим потеряна. Откройте host.html и подключитесь снова.');
         },
         onError: () => {
             connectBtn.disabled = false;
-            connectStatus.textContent = 'Не удалось подключиться. Проверьте код и что ведущий уже открыл host.html';
+            connectStatus.textContent = 'Не удалось подключиться. Сначала откройте host.html на ноутбуке ведущего.';
             connectStatus.className = 'connect-status error';
         }
-    }).catch(() => {
+    }).catch((err) => {
         connectBtn.disabled = false;
-        connectStatus.textContent = 'Не удалось подключиться. Проверьте код и что ведущий уже открыл host.html';
+        connectStatus.textContent = err.message || 'Не удалось подключиться. Сначала откройте host.html.';
         connectStatus.className = 'connect-status error';
     });
 }
 
-function hideConnectScreen(room) {
+function hideConnectScreen() {
     connectScreen.classList.remove('active');
     connectScreen.classList.add('hidden');
-    if (displayRoomCode) displayRoomCode.textContent = room;
     if (!subscribed) {
         gameSync.subscribe(onStateUpdate);
         subscribed = true;

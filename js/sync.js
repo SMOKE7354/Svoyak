@@ -1,5 +1,7 @@
 const STORAGE_KEY = 'gameState';
-const PEER_PREFIX = 'svoyak-';
+
+/** Один код на все игры — запомнить легко */
+const ROOM_CODE = 'SVOYAK';
 
 function createInitialState() {
     return {
@@ -19,24 +21,25 @@ function createInitialState() {
 
 const gameSync = {
     mode: null,
-    roomCode: null,
+    roomCode: ROOM_CODE,
+    syncMode: 'local',
     peer: null,
     connection: null,
     _listeners: [],
+    _pollTimer: null,
     _channel: typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('svoyak-game') : null,
     displayConnected: false,
 
-    generateRoomCode() {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) {
-            code += chars[Math.floor(Math.random() * chars.length)];
-        }
-        return code;
+    getRoomCode() {
+        return ROOM_CODE;
     },
 
     normalizeCode(code) {
-        return (code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        return (code || ROOM_CODE).trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || ROOM_CODE;
+    },
+
+    isLocalFile() {
+        return window.location.protocol === 'file:';
     },
 
     load() {
@@ -54,8 +57,12 @@ const gameSync = {
     save(state, notifyLocal = true) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
-        if (this.mode === 'host' && this.connection?.open) {
+        if (this.syncMode === 'peer' && this.mode === 'host' && this.connection?.open) {
             this.connection.send({ type: 'state', state });
+        }
+
+        if (this.syncMode === 'cloud' && this.mode === 'host' && this._cloudRef) {
+            this._cloudRef.set(state).catch(() => {});
         }
 
         if (this._channel) {
@@ -77,7 +84,7 @@ const gameSync = {
             };
         }
         window.addEventListener('storage', (e) => {
-            if (e.key === STORAGE_KEY && e.newValue && this.mode !== 'display') {
+            if (e.key === STORAGE_KEY && e.newValue) {
                 try {
                     fn(JSON.parse(e.newValue));
                 } catch { /* ignore */ }
@@ -91,88 +98,158 @@ const gameSync = {
         return state;
     },
 
-    initHost(callbacks = {}) {
+    _initLocalHost(callbacks) {
+        this.syncMode = 'local';
+        callbacks.onReady?.(ROOM_CODE, 'local');
+        return Promise.resolve({ code: ROOM_CODE, mode: 'local' });
+    },
+
+    _initLocalDisplay(callbacks) {
+        this.syncMode = 'local';
+        this.subscribe((state) => callbacks.onState?.(state));
+        callbacks.onConnected?.(ROOM_CODE, 'local');
+        callbacks.onState?.(this.load());
+        return Promise.resolve({ code: ROOM_CODE, mode: 'local' });
+    },
+
+    _initCloudHost(callbacks) {
+        if (typeof firebase === 'undefined' || !window.firebaseConfig?.databaseURL) {
+            return null;
+        }
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(window.firebaseConfig);
+        }
+
+        const db = firebase.database();
+        this._cloudRef = db.ref(`rooms/${ROOM_CODE}/state`);
+        this.syncMode = 'cloud';
         this.mode = 'host';
-        this.roomCode = this.generateRoomCode();
-        sessionStorage.setItem('svoyak_room', this.roomCode);
+
+        db.ref(`rooms/${ROOM_CODE}/displayOnline`).on('value', (snap) => {
+            const online = !!snap.val();
+            this.displayConnected = online;
+            if (online) callbacks.onDisplayConnected?.();
+            else callbacks.onDisplayDisconnected?.();
+        });
+
+        callbacks.onReady?.(ROOM_CODE, 'cloud');
+        return Promise.resolve({ code: ROOM_CODE, mode: 'cloud' });
+    },
+
+    _initCloudDisplay(callbacks) {
+        if (typeof firebase === 'undefined' || !window.firebaseConfig?.databaseURL) {
+            return null;
+        }
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(window.firebaseConfig);
+        }
+
+        const db = firebase.database();
+        this.syncMode = 'cloud';
+        this.mode = 'display';
+
+        db.ref(`rooms/${ROOM_CODE}/displayOnline`).set(true);
+        db.ref(`rooms/${ROOM_CODE}/displayOnline`).onDisconnect().set(false);
+
+        const stateRef = db.ref(`rooms/${ROOM_CODE}/state`);
+        stateRef.on('value', (snap) => {
+            const val = snap.val();
+            if (val && typeof val === 'object' && val.screen !== undefined) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(val));
+                callbacks.onState?.(val);
+                this._listeners.forEach(fn => fn(val));
+            }
+        });
+
+        callbacks.onConnected?.(ROOM_CODE, 'cloud');
+        return Promise.resolve({ code: ROOM_CODE, mode: 'cloud' });
+    },
+
+    _initPeerHost(callbacks) {
+        if (typeof Peer === 'undefined') return null;
+
+        this.mode = 'host';
+        this.syncMode = 'peer';
+        const peerId = `svoyak-${ROOM_CODE}`;
 
         return new Promise((resolve, reject) => {
-            if (typeof Peer === 'undefined') {
-                reject(new Error('PeerJS не загружен'));
-                return;
-            }
+            let settled = false;
 
-            this.peer = new Peer(`${PEER_PREFIX}${this.roomCode}`);
+            this.peer = new Peer(peerId, {
+                debug: 1,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
+                    ]
+                }
+            });
 
             this.peer.on('open', () => {
-                callbacks.onReady?.(this.roomCode);
-                resolve(this.roomCode);
+                if (settled) return;
+                settled = true;
+                callbacks.onReady?.(ROOM_CODE, 'peer');
+                resolve({ code: ROOM_CODE, mode: 'peer' });
             });
 
             this.peer.on('connection', (conn) => {
                 this.connection = conn;
-
                 conn.on('open', () => {
                     this.displayConnected = true;
                     callbacks.onDisplayConnected?.();
                     conn.send({ type: 'state', state: this.load() });
                 });
-
                 conn.on('close', () => {
                     this.displayConnected = false;
                     this.connection = null;
                     callbacks.onDisplayDisconnected?.();
                 });
-
-                conn.on('error', () => {
-                    this.displayConnected = false;
-                    callbacks.onDisplayDisconnected?.();
-                });
             });
 
             this.peer.on('error', (err) => {
+                if (settled) return;
                 if (err.type === 'unavailable-id') {
-                    this.roomCode = this.generateRoomCode();
-                    sessionStorage.setItem('svoyak_room', this.roomCode);
-                    this.peer.destroy();
-                    this.initHost(callbacks).then(resolve).catch(reject);
+                    settled = true;
+                    this.peer?.destroy();
+                    this._initPeerHost(callbacks).then(resolve).catch(reject);
                     return;
                 }
-                callbacks.onError?.(err);
+                settled = true;
                 reject(err);
             });
+
+            setTimeout(() => {
+                if (!settled) {
+                    settled = true;
+                    this.peer?.destroy();
+                    reject(new Error('Peer timeout'));
+                }
+            }, 8000);
         });
     },
 
-    initDisplay(roomCode, callbacks = {}) {
+    _initPeerDisplay(callbacks) {
+        if (typeof Peer === 'undefined') return null;
+
         this.mode = 'display';
-        this.roomCode = this.normalizeCode(roomCode);
-
-        if (!this.roomCode || this.roomCode.length < 4) {
-            return Promise.reject(new Error('Неверный код комнаты'));
-        }
-
-        sessionStorage.setItem('svoyak_room', this.roomCode);
+        this.syncMode = 'peer';
 
         let settled = false;
 
         return new Promise((resolve, reject) => {
-            if (typeof Peer === 'undefined') {
-                reject(new Error('PeerJS не загружен'));
-                return;
-            }
-
             this.peer = new Peer();
 
             this.peer.on('open', () => {
-                const conn = this.peer.connect(`${PEER_PREFIX}${this.roomCode}`, { reliable: true });
+                const conn = this.peer.connect(`svoyak-${ROOM_CODE}`, { reliable: true });
                 this.connection = conn;
 
                 conn.on('open', () => {
                     if (settled) return;
                     settled = true;
-                    callbacks.onConnected?.(this.roomCode);
-                    resolve(this.roomCode);
+                    callbacks.onConnected?.(ROOM_CODE, 'peer');
+                    resolve({ code: ROOM_CODE, mode: 'peer' });
                 });
 
                 conn.on('data', (data) => {
@@ -183,40 +260,75 @@ const gameSync = {
                     }
                 });
 
-                conn.on('close', () => {
-                    callbacks.onDisconnected?.();
-                });
+                conn.on('close', () => callbacks.onDisconnected?.());
 
-                conn.on('error', (err) => {
+                conn.on('error', () => {
                     if (!settled) {
                         settled = true;
-                        callbacks.onError?.(err);
-                        reject(err);
+                        reject(new Error('Connection failed'));
                     }
                 });
             });
 
-            this.peer.on('error', (err) => {
+            this.peer.on('error', () => {
                 if (!settled) {
                     settled = true;
-                    callbacks.onError?.(err);
-                    reject(err);
+                    reject(new Error('Peer error'));
                 }
             });
 
             setTimeout(() => {
                 if (!settled && !this.connection?.open) {
                     settled = true;
-                    reject(new Error('Не удалось подключиться. Проверьте код и что ведущий уже открыл панель.'));
+                    reject(new Error('Peer timeout'));
                 }
-            }, 12000);
+            }, 10000);
         });
     },
 
+    async initHost(callbacks = {}) {
+        this.mode = 'host';
+
+        if (window.firebaseConfig?.databaseURL) {
+            const cloud = this._initCloudHost(callbacks);
+            if (cloud) return cloud;
+        }
+
+        try {
+            return await this._initPeerHost(callbacks);
+        } catch {
+            return this._initLocalHost(callbacks);
+        }
+    },
+
+    async initDisplay(_roomCode, callbacks = {}) {
+        if (window.firebaseConfig?.databaseURL) {
+            const cloud = this._initCloudDisplay(callbacks);
+            if (cloud) return cloud;
+        }
+
+        try {
+            return await this._initPeerDisplay(callbacks);
+        } catch {
+            if (this.isLocalFile()) {
+                return this._initLocalDisplay(callbacks);
+            }
+            throw new Error('Не удалось подключиться. Сначала откройте host.html. Для двух ноутбуков — через GitHub Pages (https).');
+        }
+    },
+
+    getSyncHint(mode) {
+        if (mode === 'local') {
+            return 'Режим одного компьютера — для двух ноутбуков залейте на GitHub Pages';
+        }
+        if (mode === 'peer') {
+            return 'Связь через интернет (код SVOYAK)';
+        }
+        return 'Связь через облако (код SVOYAK)';
+    },
+
     getDisplayUrl() {
-        if (!this.roomCode) return 'index.html';
         const url = new URL('index.html', window.location.href);
-        url.searchParams.set('room', this.roomCode);
         return url.href;
     }
 };
