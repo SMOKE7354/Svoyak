@@ -200,6 +200,7 @@ body {
 .btn-large { padding: 16px 48px !important; font-size: 1.2rem !important; }
 .connect-status { margin-top: 15px; font-size: 0.95rem; color: var(--text-muted); min-height: 1.4em; }
 .connect-status.error { color: var(--danger); }
+.host-link { color: var(--success); font-weight: 700; }
 
 /* Round splash */
 #round-screen { justify-content: center; align-items: center; }
