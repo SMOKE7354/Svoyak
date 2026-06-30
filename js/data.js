@@ -1,52 +1,224 @@
-const gameData = [
+const gameRounds = [
     {
-        name: "Дачные войны",
-        questions: [
-            { id: "cat1_100", price: 100, text: "Главный полосатый враг картошки?", answer: "Колорадский жук", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=colorado%20potato%20beetle%20macro%20funny%20garden&image_size=landscape_16_9" },
-            { id: "cat1_200", price: 200, text: "Обувь, которая передается по наследству на даче?", answer: "Старые калоши (или тапки)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=old%20rubber%20galoshes%20garden%20shoes&image_size=landscape_16_9" },
-            { id: "cat1_300", price: 300, text: "Что делают из старых капроновых колготок на даче?", answer: "Подвязывают помидоры", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=tomato%20plants%20tied%20with%20old%20tights%20garden&image_size=landscape_16_9" },
-            { id: "cat1_400", price: 400, text: "Шашлычный 'допинг', который отлично отпугивает комаров?", answer: "Дым от мангала", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=shashlik%20manghal%20smoke%20barbecue%20funny&image_size=landscape_16_9" },
-            { id: "cat1_500", price: 500, text: "Сорняк, который лечит вообще все болезни, если приложить к ране?", answer: "Подорожник", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=plantain%20leaf%20plant%20healing%20funny&image_size=landscape_16_9" }
+        id: 1,
+        title: "Раунд 1",
+        subtitle: "Разминка — вопросы за 100–500",
+        prices: [100, 200, 300, 400, 500],
+        categories: [
+            {
+                name: "Дачные войны",
+                questions: [
+                    { id: "r1_c1_100", price: 100, text: "Главный полосатый враг картошки?", answer: "Колорадский жук" },
+                    { id: "r1_c1_200", price: 200, text: "Обувь, которая передаётся по наследству на даче?", answer: "Старые калоши (или тапки)" },
+                    { id: "r1_c1_300", price: 300, text: "Что делают из старых капроновых колготок на даче?", answer: "Подвязывают помидоры" },
+                    { id: "r1_c1_400", price: 400, text: "Шашлычный «допинг», который отлично отпугивает комаров?", answer: "Дым от мангала" },
+                    { id: "r1_c1_500", price: 500, text: "Сорняк, который лечит вообще всё, если приложить к ране?", answer: "Подорожник" }
+                ]
+            },
+            {
+                name: "Медицина после 40",
+                questions: [
+                    { id: "r1_c2_100", price: 100, text: "Звук, с которым обычно встают с дивана?", answer: "Кряхтение (или «Ох»)" },
+                    { id: "r1_c2_200", price: 200, text: "Мазь, которая пахнет на всю квартиру, но лечит спину?", answer: "Звёздочка (или Финалгон)" },
+                    { id: "r1_c2_300", price: 300, text: "Прибор, который становится лучшим другом при смене погоды?", answer: "Тонометр" },
+                    { id: "r1_c2_400", price: 400, text: "Лекарство «от нервов», которое капают в рюмку?", answer: "Валерьянка (Корвалол)" },
+                    { id: "r1_c2_500", price: 500, text: "Что хрустит громче чипсов при просмотре кино?", answer: "Суставы (колени)" }
+                ]
+            },
+            {
+                name: "Дети и гаджеты",
+                questions: [
+                    { id: "r1_c3_100", price: 100, text: "Какую кнопку ищут на пульте, чтобы сделать «как было»?", answer: "Назад (Отмена)" },
+                    { id: "r1_c3_200", price: 200, text: "Слово, которым старшее поколение называет любой планшет?", answer: "Компьютер" },
+                    { id: "r1_c3_300", price: 300, text: "Куда «уходят» деньги с телефона, по мнению родителей?", answer: "На вирусы (или Интернет)" },
+                    { id: "r1_c3_400", price: 400, text: "Главная проблема дедушек при видеозвонке?", answer: "Показывают только лоб (или ухо)" },
+                    { id: "r1_c3_500", price: 500, text: "Как называется «тот интернет» из коробочки с антеннами?", answer: "Вай-фай (Wi-Fi)" }
+                ]
+            },
+            {
+                name: "Застольные привычки",
+                questions: [
+                    { id: "r1_c4_100", price: 100, text: "Куда обязательно прячут пустую бутылку на застолье?", answer: "Под стол" },
+                    { id: "r1_c4_200", price: 200, text: "Что кричат хором, если кто-то разбил бокал?", answer: "На счастье!" },
+                    { id: "r1_c4_300", price: 300, text: "Хлеб какого цвета идеален для бутерброда со шпротами?", answer: "Чёрный" },
+                    { id: "r1_c4_400", price: 400, text: "Какую песню затягивают, когда гостям уже «хорошо»?", answer: "Ой, мороз, мороз" },
+                    { id: "r1_c4_500", price: 500, text: "Зачем нарезают колбасу так тонко, что она просвечивает?", answer: "Чтоб на всех хватило" }
+                ]
+            },
+            {
+                name: "Школа 80–90х",
+                questions: [
+                    { id: "r1_c5_100", price: 100, text: "Что торжественно мыли дежурные после уроков?", answer: "Доску (и пол)" },
+                    { id: "r1_c5_200", price: 200, text: "Главная «валюта» из вкладышей от жвачек?", answer: "Турбо (или Дональд)" },
+                    { id: "r1_c5_300", price: 300, text: "Какое лакомство грызли сухим прямо из брикета?", answer: "Кисель" },
+                    { id: "r1_c5_400", price: 400, text: "Главное оружие на задней парте из ручки?", answer: "Плевалка" },
+                    { id: "r1_c5_500", price: 500, text: "Какую часть тела ученик мог «забыть дома»?", answer: "Голову" }
+                ]
+            },
+            {
+                name: "Соседи навсегда",
+                questions: [
+                    { id: "r1_c6_100", price: 100, text: "Что соседи обязательно одолжат, но не вернут?", answer: "Дрель (или лестницу)" },
+                    { id: "r1_c6_200", price: 200, text: "Во сколько начинается «тихий час» по мнению соседа сверху?", answer: "В 22:00 (или в любое время)" },
+                    { id: "r1_c6_300", price: 300, text: "Что соседка знает о вас лучше, чем вы сами?", answer: "Расписание (когда приходите/уходите)" },
+                    { id: "r1_c6_400", price: 400, text: "Главный повод постучать в дверь в воскресенье?", answer: "Пожаловаться на шум" },
+                    { id: "r1_c6_500", price: 500, text: "Что передают через детей в подъезде?", answer: "Сплетни (или ключи)" }
+                ]
+            }
         ]
     },
     {
-        name: "Медицина после 40",
-        questions: [
-            { id: "cat2_100", price: 100, text: "Звук, с которым обычно встают с дивана?", answer: "Кряхтение (или 'Ох')", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=middle%20aged%20man%20standing%20up%20holding%20lower%20back%20pain&image_size=landscape_16_9" },
-            { id: "cat2_200", price: 200, text: "Легендарная мазь, которая пахнет на всю квартиру, но лечит спину?", answer: "Звездочка (или Финалгон)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=vintage%20red%20star%20balm%20ointment%20box&image_size=landscape_16_9" },
-            { id: "cat2_300", price: 300, text: "Прибор, который становится лучшим другом при резкой смене погоды?", answer: "Тонометр", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=blood%20pressure%20monitor%20device%20on%20table&image_size=landscape_16_9" },
-            { id: "cat2_400", price: 400, text: "Лекарство 'от нервов', которое капают в рюмку?", answer: "Валерьянка (Корвалол)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=valerian%20drops%20in%20glass%20calming%20nerves&image_size=landscape_16_9" },
-            { id: "cat2_500", price: 500, text: "Что начинает хрустеть громче, чем чипсы при просмотре кино?", answer: "Суставы (колени)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=human%20knee%20joint%20funny%20xray%20chips&image_size=landscape_16_9" }
+        id: 2,
+        title: "Раунд 2",
+        subtitle: "Усложняем — вопросы за 200–1000",
+        prices: [200, 400, 600, 800, 1000],
+        categories: [
+            {
+                name: "Очереди и бюрократия",
+                questions: [
+                    { id: "r2_c1_200", price: 200, text: "Сколько человек в очереди, если видишь одного?", answer: "Минимум десять (они за углом)" },
+                    { id: "r2_c1_400", price: 400, text: "Документ, без которого ничего не оформить, но его никто не знает?", answer: "Справка о том, что справка не нужна" },
+                    { id: "r2_c1_600", price: 600, text: "Фраза, которую говорят в окошке, когда вы всё принесли?", answer: "«Приходите завтра»" },
+                    { id: "r2_c1_800", price: 800, text: "Самый ценный навык в МФЦ?", answer: "Умение стоять (или терпение)" },
+                    { id: "r2_c1_1000", price: 1000, text: "Что обязательно сломается в день сдачи отчёта?", answer: "Принтер (или сайт)" }
+                ]
+            },
+            {
+                name: "Рыбалка и мужские секреты",
+                questions: [
+                    { id: "r2_c2_200", price: 200, text: "Главная причина «рыба не клевала»?", answer: "Погода (или жена позвонила)" },
+                    { id: "r2_c2_400", price: 400, text: "Что рыбак расскажет, даже если молчал всю дорогу домой?", answer: "Размер рыбы, которая сорвалась" },
+                    { id: "r2_c2_600", price: 600, text: "Сколько весит рыба, которую «почти поймал»?", answer: "Килограмм на 3 больше, чем была" },
+                    { id: "r2_c2_800", price: 800, text: "Зачем нужен термос на рыбалке, если рыбы нет?", answer: "Чтобы согреть душу (или чай попить)" },
+                    { id: "r2_c2_1000", price: 1000, text: "Что важнее удочки на рыбалке?", answer: "Компания (или тишина)" }
+                ]
+            },
+            {
+                name: "Супермаркет",
+                questions: [
+                    { id: "r2_c3_200", price: 200, text: "Товар, который всегда оказывается у кассы без ценника?", answer: "Бананы (или хлеб)" },
+                    { id: "r2_c3_400", price: 400, text: "Почему тележка едет только в одну сторону?", answer: "Колесо (всегда одно кривое)" },
+                    { id: "r2_c3_600", price: 600, text: "Что покупаешь «на всякий случай» и выбрасываешь через месяц?", answer: "Зелень (или йогурт)" },
+                    { id: "r2_c3_800", price: 800, text: "Самый длинный отдел для тех, кто «зашёл за хлебом»?", answer: "Касса (очередь)" },
+                    { id: "r2_c3_1000", price: 1000, text: "Что акция «2+1» заставляет купить втроём больше?", answer: "То, что не нужно" }
+                ]
+            },
+            {
+                name: "Отпуск мечты",
+                questions: [
+                    { id: "r2_c4_200", price: 200, text: "Что обязательно забудешь в отпуске?", answer: "Зарядку (или крем от солнца)" },
+                    { id: "r2_c4_400", price: 400, text: "Главный сувенир из любой поездки?", answer: "Магнит (или футболка)" },
+                    { id: "r2_c4_600", price: 600, text: "Сколько фото одного памятника нужно сделать?", answer: "Минимум 47" },
+                    { id: "r2_c4_800", price: 800, text: "Что родственники просят привезти из-за границы?", answer: "Лекарства (или шоколад)" },
+                    { id: "r2_c4_1000", price: 1000, text: "Когда отпуск заканчивается по ощущениям?", answer: "На второй день" }
+                ]
+            },
+            {
+                name: "Кино и сериалы",
+                questions: [
+                    { id: "r2_c5_200", price: 200, text: "Фраза, которую говорят, когда не поняли сюжет?", answer: "«А кто это был?»" },
+                    { id: "r2_c5_400", price: 400, text: "Сколько серий «ещё одну» превращается в?", answer: "До утра" },
+                    { id: "r2_c5_600", price: 600, text: "Что делают во время титров, если смотрят с семьёй?", answer: "Обсуждают, кто прав" },
+                    { id: "r2_c5_800", price: 800, text: "Главный spoiler, который испортит любой фильм?", answer: "«Там все умирают» (или «они вместе»)" },
+                    { id: "r2_c5_1000", price: 1000, text: "Как называют пересмотр любимого фильма в 100-й раз?", answer: "«Классика»" }
+                ]
+            },
+            {
+                name: "Автомобилисты",
+                questions: [
+                    { id: "r2_c6_200", price: 200, text: "Где всегда находится машина на парковке у ТЦ?", answer: "На самом дальнем ряду" },
+                    { id: "r2_c6_400", price: 400, text: "Что лежит в бардачке у каждого второго?", answer: "Салфетки (и документы)" },
+                    { id: "r2_c6_600", price: 600, text: "Главный враг лакокрасочного покрытия?", answer: "Воробьи (или двери соседних машин)" },
+                    { id: "r2_c6_800", price: 800, text: "Что водитель делает, когда GPS ошибся?", answer: "Кричит на навигатор" },
+                    { id: "r2_c6_1000", price: 1000, text: "Самый честный пробег на вторичке?", answer: "«По городу» (только город — 500 км в день)" }
+                ]
+            }
         ]
     },
     {
-        name: "Дети и Гаджеты",
-        questions: [
-            { id: "cat3_100", price: 100, text: "Какую кнопку ищут на пульте, чтобы сделать 'как было'?", answer: "Назад (Отмена)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=confused%20grandma%20holding%20modern%20tv%20remote&image_size=landscape_16_9" },
-            { id: "cat3_200", price: 200, text: "Слово, которым старшее поколение называет любой планшет или приставку?", answer: "Компьютер", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=old%20person%20looking%20at%20ipad%20tablet%20funny&image_size=landscape_16_9" },
-            { id: "cat3_300", price: 300, text: "Куда 'уходят' все деньги с телефона, по мнению родителей?", answer: "На вирусы (или Интернет)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=flying%20money%20from%20smartphone%20screen%20funny&image_size=landscape_16_9" },
-            { id: "cat3_400", price: 400, text: "Главная проблема дедушек при звонке по видеосвязи?", answer: "Показывают только лоб (или ухо)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=grandpa%20face%20too%20close%20to%20smartphone%20camera%20video%20call&image_size=landscape_16_9" },
-            { id: "cat3_500", price: 500, text: "Как называется 'тот интернет', который раздает коробочка с антеннами?", answer: "Вай-фай (Wi-Fi)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=wifi%20router%20with%20glowing%20antennas%20magic&image_size=landscape_16_9" }
-        ]
-    },
-    {
-        name: "Застольные привычки",
-        questions: [
-            { id: "cat4_100", price: 100, text: "Куда обязательно нужно спрятать пустую бутылку на застолье?", answer: "Под стол", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=empty%20glass%20bottle%20hidden%20under%20festive%20table&image_size=landscape_16_9" },
-            { id: "cat4_200", price: 200, text: "Что кричат хором, если кто-то случайно разбил бокал?", answer: "На счастье!", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=broken%20wine%20glass%20on%20floor%20celebration&image_size=landscape_16_9" },
-            { id: "cat4_300", price: 300, text: "Хлеб какого цвета идеален для бутерброда со шпротами?", answer: "Черный", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=sprat%20sandwich%20on%20black%20bread%20russian%20food&image_size=landscape_16_9" },
-            { id: "cat4_400", price: 400, text: "Какую песню обязательно затягивают, когда гостям уже 'хорошо'?", answer: "Ой, мороз, мороз", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=drunk%20happy%20people%20singing%20at%20feast%20table&image_size=landscape_16_9" },
-            { id: "cat4_500", price: 500, text: "Зачем нарезают сырокопченую колбасу так тонко, что она просвечивает?", answer: "Чтоб на всех хватило (или для красоты)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=transparent%20thin%20slice%20of%20salami%20sausage%20funny&image_size=landscape_16_9" }
-        ]
-    },
-    {
-        name: "Школа 80-90х",
-        questions: [
-            { id: "cat5_100", price: 100, text: "Что торжественно мыли дежурные после уроков?", answer: "Доску (и пол)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=soviet%20school%20blackboard%20chalk%20and%20rag&image_size=landscape_16_9" },
-            { id: "cat5_200", price: 200, text: "Как называлась главная 'валюта' из вкладышей от жвачек?", answer: "Турбо (или Дональд)", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=retro%20turbo%20bubble%20gum%20wrappers%20collection&image_size=landscape_16_9" },
-            { id: "cat5_300", price: 300, text: "Какое лакомство нужно было грызть сухим прямо из брикета?", answer: "Кисель", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=briquette%20of%20dry%20kissel%20fruit%20jelly%20bitten&image_size=landscape_16_9" },
-            { id: "cat5_400", price: 400, text: "Главное оружие на задней парте, сделанное из ручки?", answer: "Плевалка", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=school%20spitball%20shooter%20made%20from%20pen%20funny&image_size=landscape_16_9" },
-            { id: "cat5_500", price: 500, text: "Какую часть тела, по мнению учителя, ученик мог забыть дома?", answer: "Голову", image: "https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=strict%20soviet%20teacher%20pointing%20at%20head%20funny&image_size=landscape_16_9" }
+        id: 3,
+        title: "Раунд 3",
+        subtitle: "Финал — вопросы за 500–2500",
+        prices: [500, 1000, 1500, 2000, 2500],
+        categories: [
+            {
+                name: "Народная мудрость",
+                questions: [
+                    { id: "r3_c1_500", price: 500, text: "Что говорят, когда совет не просили?", answer: "«Я же говорил!»" },
+                    { id: "r3_c1_1000", price: 1000, text: "Главный аргумент в семейном споре?", answer: "«Я старше» (или «Я муж»)" },
+                    { id: "r3_c1_1500", price: 1500, text: "Что означает «скоро» по-русски?", answer: "От получаса до никогда" },
+                    { id: "r3_c1_2000", price: 2000, text: "Фраза, после которой точно будет скандал?", answer: "«Тебе лучше знать»" },
+                    { id: "r3_c1_2500", price: 2500, text: "Самая опасная фраза на кухне?", answer: "«Да ладно, ещё чуть-чуть»" }
+                ]
+            },
+            {
+                name: "Праздники",
+                questions: [
+                    { id: "r3_c2_500", price: 500, text: "Что покупают 31 декабря в 23:00?", answer: "Оливье (или шампанское)" },
+                    { id: "r3_c2_1000", price: 1000, text: "Главный вопрос на 8 Марта?", answer: "«Что подарить?»" },
+                    { id: "r3_c2_1500", price: 1500, text: "Сколько салатов на новогоднем столе?", answer: "Больше, чем гостей" },
+                    { id: "r3_c2_2000", price: 2000, text: "Что обязательно идёт не по плану на свадьбе?", answer: "Тост (или торт)" },
+                    { id: "r3_c2_2500", price: 2500, text: "Когда начинается подготовка к Новому году?", answer: "1 января (до следующего)" }
+                ]
+            },
+            {
+                name: "Животные в быту",
+                questions: [
+                    { id: "r3_c3_500", price: 500, text: "Кто реально хозяин в квартире с котом?", answer: "Кот" },
+                    { id: "r3_c3_1000", price: 1000, text: "Что собака приносит, когда стыдно?", answer: "Лапу (или нос)" },
+                    { id: "r3_c3_1500", price: 1500, text: "Где кот спит, если купили ему лежанку?", answer: "На клавиатуре (или в коробке)" },
+                    { id: "r3_c3_2000", price: 2000, text: "Что говорят гости, когда видят вашу собаку?", answer: "«Ой, какая! А кусается?»" },
+                    { id: "r3_c3_2500", price: 2500, text: "Самый дорогой «бесплатный» котёнок?", answer: "Тот, что «подобрали на улице»" }
+                ]
+            },
+            {
+                name: "Работа и офис",
+                questions: [
+                    { id: "r3_c4_500", price: 500, text: "Что делают, когда начальник вышел?", answer: "Обсуждают начальника" },
+                    { id: "r3_c4_1000", price: 1000, text: "Главный праздник для сотрудников?", answer: "Пятница (или день зарплаты)" },
+                    { id: "r3_c4_1500", price: 1500, text: "Сколько «5 минут» длится перекур?", answer: "20–40 минут" },
+                    { id: "r3_c4_2000", price: 2000, text: "Что пишут в отчёте, когда ничего не сделали?", answer: "«В процессе» (или «Планируется»)" },
+                    { id: "r3_c4_2500", price: 2500, text: "Самая страшная фраза в понедельник?", answer: "«Срочно нужно к обеду»" }
+                ]
+            },
+            {
+                name: "Здоровье и ЗОЖ",
+                questions: [
+                    { id: "r3_c5_500", price: 500, text: "С какого понедельника начинают новую жизнь?", answer: "Со следующего" },
+                    { id: "r3_c5_1000", price: 1000, text: "Что покупают, решив заняться спортом?", answer: "Абонемент (которым не пользуются)" },
+                    { id: "r3_c5_1500", price: 1500, text: "Главный враг диеты?", answer: "Праздник (или «ну один раз»)" },
+                    { id: "r3_c5_2000", price: 2000, text: "Сколько шагов нужно пройти «для здоровья»?", answer: "10 000 (но хватит до холодильника)" },
+                    { id: "r3_c5_2500", price: 2500, text: "Что полезнее: бег или ходьба до автобуса?", answer: "Тот, который реально делаешь" }
+                ]
+            },
+            {
+                name: "Финальная тема",
+                questions: [
+                    { id: "r3_c6_500", price: 500, text: "Как называют игру, в которую вы сейчас играете?", answer: "Своя игра (Свояк)" },
+                    { id: "r3_c6_1000", price: 1000, text: "Кто в этой игре знает все ответы?", answer: "Ведущий (аниматор)" },
+                    { id: "r3_c6_1500", price: 1500, text: "Что говорят проигравший, улыбаясь?", answer: "«Я знал!»" },
+                    { id: "r3_c6_2000", price: 2000, text: "Главный приз победителя?", answer: "Уважение (и моральное превосходство)" },
+                    { id: "r3_c6_2500", price: 2500, text: "Когда игра считается удалённой?", answer: "Когда просят «ещё раунд!»" }
+                ]
+            }
         ]
     }
 ];
+
+function getRoundData(roundId) {
+    return gameRounds.find(r => r.id === roundId) || gameRounds[0];
+}
+
+function getAllQuestionsForRound(roundId) {
+    const round = getRoundData(roundId);
+    if (!round) return [];
+    return round.categories.flatMap(cat =>
+        cat.questions.map(q => ({ ...q, categoryName: cat.name }))
+    );
+}
+
+function getRoundProgress(roundId, playedQuestions) {
+    const all = getAllQuestionsForRound(roundId);
+    const played = all.filter(q => playedQuestions.includes(q.id)).length;
+    return { played, total: all.length };
+}

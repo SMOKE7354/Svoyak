@@ -1,193 +1,257 @@
-// State
-let state = {
-    screen: 'lobby', // 'lobby', 'board', 'question'
-    players: [],
-    playedQuestions: [],
-    currentQuestion: null
-};
+let state = createInitialState();
+let lastEffectTimestamp = 0;
+let roundAnnouncementTimer = null;
+let connected = false;
+let subscribed = false;
 
-// Elements
+const connectScreen = document.getElementById('connect-screen');
+const roomCodeInput = document.getElementById('room-code-input');
+const connectBtn = document.getElementById('connect-btn');
+const connectStatus = document.getElementById('connect-status');
+const displayRoomCode = document.getElementById('display-room-code');
+
 const screens = {
     lobby: document.getElementById('lobby-screen'),
+    round: document.getElementById('round-screen'),
     board: document.getElementById('board-screen'),
-    question: document.getElementById('question-screen')
+    question: document.getElementById('question-screen'),
+    finale: document.getElementById('finale-screen')
 };
 
-// Lobby elements
-const playerInput = document.getElementById('player-input');
-const addPlayerBtn = document.getElementById('add-player-btn');
-const playersList = document.getElementById('players-list');
-const startGameBtn = document.getElementById('start-game-btn');
-
-// Board elements
 const grid = document.getElementById('grid');
 const playersScores = document.getElementById('players-scores');
 const playersScoresQuestion = document.getElementById('players-scores-question');
-
-// Question elements
 const questionPrice = document.getElementById('question-price');
+const questionCategory = document.getElementById('question-category');
 const questionText = document.getElementById('question-text');
 const questionImage = document.getElementById('question-image');
 const questionAnswerDisplay = document.getElementById('question-answer-display');
 const timerDisplay = document.getElementById('timer-display');
 const effectsOverlay = document.getElementById('effects-overlay');
+const displayStatus = document.getElementById('display-status');
+const displayPlayersPreview = document.getElementById('display-players-preview');
+const boardRoundBadge = document.getElementById('board-round-badge');
+const roundNumber = document.getElementById('round-number');
+const roundTitle = document.getElementById('round-title');
+const roundSubtitle = document.getElementById('round-subtitle');
+const finaleWinners = document.getElementById('finale-winners');
 
-let lastEffectTimestamp = 0;
-
-// Init
 function init() {
-    loadState();
-    setupEventListeners();
-    renderScreen();
-}
+    setupConnectUI();
 
-function loadState() {
-    const savedState = localStorage.getItem('gameState');
-    if (savedState) {
-        state = JSON.parse(savedState);
-    } else {
-        saveState();
+    const params = new URLSearchParams(window.location.search);
+    const roomFromUrl = params.get('room');
+    if (roomFromUrl) {
+        roomCodeInput.value = roomFromUrl;
+        connectToRoom(roomFromUrl);
     }
 }
 
-function saveState() {
-    localStorage.setItem('gameState', JSON.stringify(state));
+function setupConnectUI() {
+    connectBtn.addEventListener('click', () => connectToRoom(roomCodeInput.value));
+    roomCodeInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') connectToRoom(roomCodeInput.value);
+    });
+    roomCodeInput.addEventListener('input', () => {
+        roomCodeInput.value = gameSync.normalizeCode(roomCodeInput.value);
+    });
 }
 
-function setupEventListeners() {
-    addPlayerBtn.addEventListener('click', addPlayer);
-    playerInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addPlayer();
-    });
-    startGameBtn.addEventListener('click', startGame);
+function connectToRoom(code) {
+    const normalized = gameSync.normalizeCode(code);
+    if (normalized.length < 4) {
+        connectStatus.textContent = 'Введите код комнаты (4–6 символов)';
+        connectStatus.className = 'connect-status error';
+        return;
+    }
 
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'gameState') {
-            const newState = JSON.parse(e.newValue);
-            if (newState) {
-                state = newState;
-                renderScreen();
-                
-                // Update timer
-                if (state.timerValue !== undefined && state.timerValue !== null) {
-                    timerDisplay.textContent = state.timerValue;
-                    timerDisplay.classList.remove('hidden');
-                    if (state.timerValue <= 5) {
-                        timerDisplay.classList.add('danger-pulse');
-                    } else {
-                        timerDisplay.classList.remove('danger-pulse');
-                    }
-                } else {
-                    timerDisplay.classList.add('hidden');
-                }
+    connectBtn.disabled = true;
+    connectStatus.textContent = 'Подключение…';
+    connectStatus.className = 'connect-status';
 
-                // Handle Effects
-                if (state.effect && state.effectTimestamp && state.effectTimestamp !== lastEffectTimestamp) {
-                    lastEffectTimestamp = state.effectTimestamp;
-                    playEffect(state.effect);
-                }
+    gameSync.initDisplay(normalized, {
+        onState: (newState) => {
+            if (!connected) {
+                connected = true;
+                hideConnectScreen(normalized);
             }
+            onStateUpdate(newState);
+        },
+        onConnected: (room) => {
+            connected = true;
+            hideConnectScreen(room);
+        },
+        onDisconnected: () => {
+            connected = false;
+            showConnectScreen('Связь с ведущим потеряна. Подключитесь снова.');
+        },
+        onError: () => {
+            connectBtn.disabled = false;
+            connectStatus.textContent = 'Не удалось подключиться. Проверьте код и что ведущий уже открыл host.html';
+            connectStatus.className = 'connect-status error';
         }
+    }).catch(() => {
+        connectBtn.disabled = false;
+        connectStatus.textContent = 'Не удалось подключиться. Проверьте код и что ведущий уже открыл host.html';
+        connectStatus.className = 'connect-status error';
     });
+}
+
+function hideConnectScreen(room) {
+    connectScreen.classList.remove('active');
+    connectScreen.classList.add('hidden');
+    if (displayRoomCode) displayRoomCode.textContent = room;
+    if (!subscribed) {
+        gameSync.subscribe(onStateUpdate);
+        subscribed = true;
+    }
+    state = gameSync.load();
+    renderScreen();
+}
+
+function showConnectScreen(message) {
+    connectScreen.classList.remove('hidden');
+    connectScreen.classList.add('active');
+    Object.values(screens).forEach(s => {
+        if (s) { s.classList.remove('active'); s.classList.add('hidden'); }
+    });
+    connectBtn.disabled = false;
+    if (message) {
+        connectStatus.textContent = message;
+        connectStatus.className = 'connect-status error';
+    }
+}
+
+function onStateUpdate(newState) {
+    const prevAnnouncement = state.roundAnnouncement;
+    state = newState;
+    renderScreen();
+
+    if (state.roundAnnouncement && state.roundAnnouncement !== prevAnnouncement) {
+        showRoundAnnouncement();
+    }
+
+    if (state.timerValue !== undefined && state.timerValue !== null) {
+        timerDisplay.textContent = state.timerValue;
+        timerDisplay.classList.remove('hidden');
+        timerDisplay.classList.toggle('danger-pulse', state.timerValue <= 5);
+    } else if (state.screen !== 'question') {
+        timerDisplay.classList.add('hidden');
+    }
+
+    if (state.effect && state.effectTimestamp && state.effectTimestamp !== lastEffectTimestamp) {
+        lastEffectTimestamp = state.effectTimestamp;
+        playEffect(state.effect);
+    }
+}
+
+function showRoundAnnouncement() {
+    const round = getRoundData(state.currentRound);
+    if (!round) return;
+
+    roundNumber.textContent = round.id;
+    roundTitle.textContent = round.title;
+    roundSubtitle.textContent = round.subtitle;
+
+    Object.values(screens).forEach(s => {
+        if (s) { s.classList.remove('active'); s.classList.add('hidden'); }
+    });
+    screens.round.classList.remove('hidden');
+    screens.round.classList.add('active');
+
+    clearTimeout(roundAnnouncementTimer);
+    roundAnnouncementTimer = setTimeout(() => {
+        if (state.screen === 'board') renderScreen();
+    }, 3500);
 }
 
 function playEffect(effectName) {
     if (!effectsOverlay) return;
-    
     effectsOverlay.className = `effects-overlay ${effectName}`;
-    
-    // Auto hide after animation
     setTimeout(() => {
         effectsOverlay.className = 'effects-overlay hidden';
     }, 1500);
 }
 
-function addPlayer() {
-    const name = playerInput.value.trim();
-    if (name) {
-        state.players.push({ id: Date.now().toString(), name, score: 0 });
-        playerInput.value = '';
-        saveState();
-        renderPlayersList();
-    }
-}
-
-function removePlayer(id) {
-    state.players = state.players.filter(p => p.id !== id);
-    saveState();
-    renderPlayersList();
-}
-
-function startGame() {
-    state.screen = 'board';
-    saveState();
-    renderScreen();
-}
-
-// Rendering
 function renderScreen() {
-    // Hide all
-    Object.values(screens).forEach(s => {
-        if(s) {
-            s.classList.remove('active');
-            s.classList.add('hidden');
-        }
-    });
-
-    // Show current
-    if (screens[state.screen]) {
-        screens[state.screen].classList.remove('hidden');
-        screens[state.screen].classList.add('active');
+    if (state.roundAnnouncement && Date.now() - state.roundAnnouncement < 3500) {
+        return;
     }
 
-    if (state.screen === 'lobby') {
-        renderPlayersList();
-    } else if (state.screen === 'board') {
-        renderBoard();
-        renderScores();
-    } else if (state.screen === 'question') {
-        renderQuestion();
-        renderScores();
+    Object.values(screens).forEach(s => {
+        if (s) { s.classList.remove('active'); s.classList.add('hidden'); }
+    });
+
+    const screen = screens[state.screen];
+    if (screen) {
+        screen.classList.remove('hidden');
+        screen.classList.add('active');
+    }
+
+    switch (state.screen) {
+        case 'lobby':
+            renderLobby();
+            break;
+        case 'board':
+            renderBoard();
+            renderScores();
+            break;
+        case 'question':
+            renderQuestion();
+            renderScores();
+            break;
+        case 'finale':
+            renderFinale();
+            break;
     }
 }
 
-function renderPlayersList() {
-    if(!playersList) return;
-    playersList.innerHTML = '';
-    state.players.forEach(p => {
-        const li = document.createElement('li');
-        li.innerHTML = `<span>${p.name}</span> <button onclick="removePlayer('${p.id}')">✕</button>`;
-        playersList.appendChild(li);
-    });
-    if(startGameBtn) {
-        startGameBtn.disabled = state.players.length === 0;
+function renderLobby() {
+    if (state.players.length > 0) {
+        displayStatus.innerHTML = state.currentRound > 0
+            ? '<div class="pulse-dot connected"></div><span>Перерыв между раундами</span>'
+            : '<div class="pulse-dot connected"></div><span>Игроки готовы — ждём старт от ведущего</span>';
+        displayPlayersPreview.classList.remove('hidden');
+        if (state.currentRound > 0) {
+            const sorted = [...state.players].sort((a, b) => b.score - a.score);
+            displayPlayersPreview.innerHTML = sorted
+                .map(p => `<span class="player-chip">${p.name}: <strong>${p.score}</strong></span>`)
+                .join('');
+        } else {
+            displayPlayersPreview.innerHTML = state.players
+                .map(p => `<span class="player-chip">${p.name}</span>`)
+                .join('');
+        }
+    } else {
+        displayStatus.innerHTML = '<div class="pulse-dot"></div><span>Ожидание ведущего…</span>';
+        displayPlayersPreview.classList.add('hidden');
     }
 }
 
 function renderBoard() {
-    if(!grid) return;
+    if (!grid) return;
+    const round = getRoundData(state.currentRound);
+    if (!round) return;
+
+    boardRoundBadge.textContent = round.title;
+
     grid.innerHTML = '';
-    
-    // Set grid columns based on number of categories
-    grid.style.gridTemplateColumns = `repeat(${gameData.length}, 1fr)`;
+    grid.style.gridTemplateColumns = `repeat(${round.categories.length}, 1fr)`;
     grid.style.gridTemplateRows = `auto repeat(5, 1fr)`;
 
-    // Headers
-    gameData.forEach(cat => {
+    round.categories.forEach(cat => {
         const cell = document.createElement('div');
         cell.className = 'cell category-name';
         cell.textContent = cat.name;
         grid.appendChild(cell);
     });
 
-    // Questions (row by row)
     for (let i = 0; i < 5; i++) {
-        gameData.forEach(cat => {
+        round.categories.forEach(cat => {
             const q = cat.questions[i];
-            if(!q) return;
+            if (!q) return;
             const cell = document.createElement('div');
             cell.className = 'cell question-cell';
-            
             if (state.playedQuestions.includes(q.id)) {
                 cell.classList.add('played');
             } else {
@@ -199,8 +263,8 @@ function renderBoard() {
 }
 
 function renderScores() {
-    const renderScoresTo = (container) => {
-        if(!container) return;
+    const renderTo = (container) => {
+        if (!container) return;
         container.innerHTML = '';
         state.players.forEach(p => {
             const card = document.createElement('div');
@@ -212,34 +276,55 @@ function renderScores() {
             container.appendChild(card);
         });
     };
-
-    if (state.screen === 'board') renderScoresTo(playersScores);
-    if (state.screen === 'question') renderScoresTo(playersScoresQuestion);
+    if (state.screen === 'board') renderTo(playersScores);
+    if (state.screen === 'question') renderTo(playersScoresQuestion);
 }
 
 function renderQuestion() {
-    if (state.currentQuestion && questionPrice && questionText) {
-        questionPrice.textContent = state.currentQuestion.price;
-        questionText.textContent = state.currentQuestion.text;
-        
-        if (state.currentQuestion.image) {
-            questionImage.src = state.currentQuestion.image;
-            questionImage.classList.remove('hidden');
-        } else {
-            questionImage.classList.add('hidden');
-            questionImage.src = '';
-        }
+    if (!state.currentQuestion) return;
 
-        if (state.showAnswer) {
-            questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${state.currentQuestion.answer}`;
-            questionAnswerDisplay.classList.remove('hidden');
-        } else {
-            questionAnswerDisplay.classList.add('hidden');
-        }
+    questionPrice.textContent = state.currentQuestion.price;
+    questionCategory.textContent = state.currentQuestion.categoryName || '';
+    questionText.textContent = state.currentQuestion.text;
+
+    if (state.currentQuestion.image) {
+        questionImage.src = state.currentQuestion.image;
+        questionImage.classList.remove('hidden');
+    } else {
+        questionImage.classList.add('hidden');
+        questionImage.src = '';
+    }
+
+    if (state.showAnswer) {
+        questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${state.currentQuestion.answer}`;
+        questionAnswerDisplay.classList.remove('hidden');
+    } else {
+        questionAnswerDisplay.classList.add('hidden');
+    }
+
+    if (state.timerValue !== undefined && state.timerValue !== null) {
+        timerDisplay.textContent = state.timerValue;
+        timerDisplay.classList.remove('hidden');
+        timerDisplay.classList.toggle('danger-pulse', state.timerValue <= 5);
     }
 }
 
-// Ensure functions are available globally for inline onclick handlers
-window.removePlayer = removePlayer;
+function renderFinale() {
+    if (!finaleWinners) return;
+    const sorted = [...state.players].sort((a, b) => b.score - a.score);
+    const maxScore = sorted[0]?.score ?? 0;
+    const winners = sorted.filter(p => p.score === maxScore);
+
+    finaleWinners.innerHTML = sorted.map((p, i) => {
+        const isWinner = winners.includes(p);
+        return `
+            <div class="finale-row ${isWinner ? 'winner' : ''}">
+                <span class="finale-place">${i + 1}</span>
+                <span class="finale-name">${p.name}</span>
+                <span class="finale-score">${p.score}</span>
+            </div>
+        `;
+    }).join('');
+}
 
 init();
