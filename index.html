@@ -14,14 +14,11 @@
             <h1 class="glow-text">СВОЯ ИГРА</h1>
             <p class="subtitle display-hint">Экран для зрителей</p>
             <div class="room-join">
-                <label for="room-code-input">Код комнаты от ведущего</label>
-                <div class="room-join-row">
-                    <input type="text" id="room-code-input" placeholder="ABC123" maxlength="6" autocomplete="off">
-                    <button id="connect-btn" class="btn primary">Подключиться</button>
-                </div>
+                <p class="fixed-room-code">Код игры: <strong>SVOYAK</strong></p>
+                <button id="connect-btn" class="btn primary btn-large">Подключиться к игре</button>
                 <p id="connect-status" class="connect-status"></p>
             </div>
-            <p class="setup-tip">Ведущий видит код на панели <strong>host.html</strong>. Оба ноутбука должны быть в интернете.</p>
+            <p class="setup-tip">Сначала откройте <strong>host.html</strong> на ноутбуке ведущего, потом нажмите кнопку выше.</p>
         </div>
     </div>
 
@@ -35,7 +32,7 @@
                 <span>Ожидание ведущего…</span>
             </div>
             <div id="display-players-preview" class="display-players-preview hidden"></div>
-            <p class="setup-tip">Подключено к комнате <strong id="display-room-code">—</strong></p>
+            <p class="setup-tip">Код игры: <strong>SVOYAK</strong></p>
         </div>
     </div>
 
@@ -82,7 +79,10 @@
 
     <div id="effects-overlay" class="effects-overlay hidden"></div>
 
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="js/firebase-config.js"></script>
     <script src="js/data.js"></script>
     <script src="js/sync.js"></script>
     <script src="js/app.js"></script>

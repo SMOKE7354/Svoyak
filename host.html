@@ -16,11 +16,10 @@
         </div>
         <div class="host-header-right">
             <div id="host-room-box" class="host-room-box">
-                <span class="room-label">Код для табло:</span>
-                <span id="host-room-code" class="host-room-code">------</span>
-                <button id="copy-room-btn" class="btn-copy" title="Скопировать код">📋</button>
-                <button id="copy-link-btn" class="btn-copy" title="Скопировать ссылку">🔗</button>
+                <span class="room-label">Код игры:</span>
+                <span id="host-room-code" class="host-room-code">SVOYAK</span>
             </div>
+            <div id="host-sync-hint" class="host-sync-hint"></div>
             <div id="host-progress" class="host-progress hidden"></div>
             <div id="host-status" class="host-status disconnected">Табло не подключено</div>
         </div>
@@ -30,7 +29,7 @@
     <div id="host-lobby-screen" class="host-fullscreen active">
         <div class="host-lobby-panel glass-panel">
             <h1 class="glow-text">Панель ведущего</h1>
-            <p class="subtitle">Добавьте игроков и запустите раунды. На втором ноутбуке или TV откройте <code>index.html</code> и введите код комнаты сверху.</p>
+            <p class="subtitle">Добавьте игроков и запустите раунды. На втором экране откройте <code>index.html</code> и нажмите «Подключиться» (код всегда <strong>SVOYAK</strong>).</p>
 
             <div class="lobby-setup-row">
                 <input type="text" id="player-input" placeholder="Имя игрока" autocomplete="off">
@@ -158,7 +157,10 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="js/firebase-config.js"></script>
     <script src="js/data.js"></script>
     <script src="js/sync.js"></script>
     <script src="js/host.js"></script>
