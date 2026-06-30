@@ -31,12 +31,17 @@ const manualScoreInput = document.getElementById('manual-score-input');
 const hostStatus = document.getElementById('host-status');
 const hostRoomCode = document.getElementById('host-room-code');
 const hostSyncHint = document.getElementById('host-sync-hint');
+const firebaseBanner = document.getElementById('firebase-setup-banner');
 
 function init() {
     state = gameSync.load();
     setupEventListeners();
 
     if (hostRoomCode) hostRoomCode.textContent = gameSync.getRoomCode();
+
+    if (gameSync.needsFirebaseSetup() && firebaseBanner) {
+        firebaseBanner.classList.remove('hidden');
+    }
 
     gameSync.initHost({
         onReady: (_code, mode) => {
@@ -47,11 +52,6 @@ function init() {
         },
         onDisplayConnected: () => updateHostConnectionStatus(true),
         onDisplayDisconnected: () => updateHostConnectionStatus(false)
-    }).catch(() => {
-        if (hostSyncHint) {
-            hostSyncHint.textContent = 'Локальный режим — работает на одном компьютере (два окна)';
-        }
-        updateHostConnectionStatus(false);
     });
 
     renderAll();

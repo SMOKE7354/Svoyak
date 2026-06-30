@@ -1,10 +1,9 @@
-// Необязательно: для надёжной игры на двух ноутбуках через интернет
-// 1. Создайте проект на https://console.firebase.google.com
-// 2. Realtime Database → создать → правила: { "rules": { ".read": true, ".write": true } }
-// 3. Скопируйте конфиг сюда:
 window.firebaseConfig = {
-    // apiKey: "...",
-    // authDomain: "...",
-    // databaseURL: "https://ВАШ-ПРОЕКТ-default-rtdb.firebaseio.com",
-    // projectId: "..."
+    apiKey: "AIzaSyD_07obqXzSF_M10hmk-wnekL_To56rYEc",
+    authDomain: "svoyak-game-c1f69.firebaseapp.com",
+    databaseURL: "https://svoyak-game-c1f69-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "svoyak-game-c1f69",
+    storageBucket: "svoyak-game-c1f69.firebasestorage.app",
+    messagingSenderId: "174039861754",
+    appId: "1:174039861754:web:a3864862b803db05c2fc43"
 };

@@ -36,6 +36,7 @@ const finaleWinners = document.getElementById('finale-winners');
 
 function init() {
     setupConnectUI();
+    connectToGame();
 }
 
 function setupConnectUI() {
@@ -55,27 +56,27 @@ function connectToGame() {
             }
             onStateUpdate(newState);
         },
-        onConnected: () => {
+        onConnected: (_code, mode) => {
             connected = true;
-            hideConnectScreen();
+            hideConnectScreen(mode);
         },
         onDisconnected: () => {
             connected = false;
-            showConnectScreen('Связь с ведущим потеряна. Откройте host.html и подключитесь снова.');
-        },
-        onError: () => {
-            connectBtn.disabled = false;
-            connectStatus.textContent = 'Не удалось подключиться. Сначала откройте host.html на ноутбуке ведущего.';
-            connectStatus.className = 'connect-status error';
+            showConnectScreen('Связь потеряна. Обновите страницу.');
+        }
+    }).then((result) => {
+        if (!connected) {
+            connected = true;
+            hideConnectScreen(result?.mode || 'local');
         }
     }).catch((err) => {
         connectBtn.disabled = false;
-        connectStatus.textContent = err.message || 'Не удалось подключиться. Сначала откройте host.html.';
+        connectStatus.textContent = err.message || 'Ошибка подключения';
         connectStatus.className = 'connect-status error';
     });
 }
 
-function hideConnectScreen() {
+function hideConnectScreen(mode) {
     connectScreen.classList.remove('active');
     connectScreen.classList.add('hidden');
     if (!subscribed) {
@@ -84,6 +85,10 @@ function hideConnectScreen() {
     }
     state = gameSync.load();
     renderScreen();
+
+    if (mode === 'local' && gameSync.needsFirebaseSetup() && state.players.length === 0) {
+        displayStatus.innerHTML = '<div class="pulse-dot connected"></div><span>Подключено (один компьютер). Для 2 ноутбуков — настройте Firebase</span>';
+    }
 }
 
 function showConnectScreen(message) {
