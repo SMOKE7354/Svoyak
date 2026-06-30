@@ -158,7 +158,105 @@ body {
 @keyframes danger-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-/* Utilities */
+/* Display / TV mode */
+.display-body { background: #000; }
+.display-wait {
+    margin: auto; padding: 60px; max-width: 700px; text-align: center;
+}
+.display-wait h1 { font-size: 4rem; margin-bottom: 10px; }
+.display-hint { font-size: 1.2rem; margin-bottom: 40px; }
+.display-status {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-size: 1.3rem; color: var(--text-muted); margin-bottom: 30px;
+}
+.pulse-dot {
+    width: 12px; height: 12px; border-radius: 50%; background: var(--danger);
+    animation: pulse 1.5s infinite;
+}
+.pulse-dot.connected { background: var(--success); }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+.display-players-preview {
+    display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px;
+}
+.player-chip {
+    background: #1a1a1a; border: 1px solid var(--panel-border);
+    padding: 8px 20px; border-radius: 20px; font-weight: 700;
+}
+.setup-tip {
+    color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;
+    border-top: 1px solid var(--panel-border); padding-top: 25px; margin-top: 10px;
+}
+.setup-tip strong { color: var(--text-main); }
+
+/* Room join */
+.room-join { margin: 30px 0; }
+.room-join label {
+    display: block; margin-bottom: 10px; color: var(--text-muted);
+    font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;
+}
+.room-join-row { display: flex; gap: 10px; justify-content: center; }
+.room-join-row input {
+    width: 180px; padding: 14px; font-size: 1.8rem; font-weight: 900;
+    text-align: center; letter-spacing: 6px; text-transform: uppercase;
+    background: #000; color: var(--success); border: 2px solid var(--panel-border);
+    border-radius: 12px; outline: none;
+}
+.room-join-row input:focus { border-color: var(--success); }
+.connect-status { margin-top: 15px; font-size: 0.95rem; color: var(--text-muted); min-height: 1.4em; }
+.connect-status.error { color: var(--danger); }
+
+/* Round splash */
+#round-screen { justify-content: center; align-items: center; }
+.round-splash { text-align: center; animation: roundIn 0.8s ease; }
+.round-number {
+    font-size: 8rem; font-weight: 900; color: var(--success);
+    line-height: 1; margin-bottom: 10px;
+    text-shadow: 0 0 60px rgba(0, 204, 102, 0.4);
+}
+.round-subtitle { font-size: 1.8rem; color: var(--text-muted); margin-top: 15px; }
+@keyframes roundIn {
+    0% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Board header */
+.board-header {
+    padding: 15px 30px 0; display: flex; justify-content: center;
+}
+.round-badge {
+    background: #1a1a1a; border: 1px solid var(--success); color: var(--success);
+    padding: 8px 24px; border-radius: 20px; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 2px; font-size: 1rem;
+}
+
+/* Question category on display */
+.question-category {
+    font-size: 1.5rem; color: var(--text-muted); margin-bottom: 10px;
+    text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* Finale */
+#finale-screen { justify-content: center; align-items: center; }
+.finale-panel { padding: 60px; text-align: center; max-width: 800px; width: 100%; }
+.finale-panel h1 { font-size: 3.5rem; margin-bottom: 40px; }
+.finale-winners { display: flex; flex-direction: column; gap: 12px; }
+.finale-row {
+    display: flex; align-items: center; gap: 20px; padding: 20px 30px;
+    background: #111; border: 1px solid var(--panel-border); border-radius: 12px;
+}
+.finale-row.winner {
+    border-color: var(--success); background: rgba(0, 204, 102, 0.1);
+    box-shadow: 0 0 30px rgba(0, 204, 102, 0.2);
+}
+.finale-place { font-size: 2rem; font-weight: 900; color: var(--text-muted); min-width: 40px; }
+.finale-row.winner .finale-place { color: var(--success); }
+.finale-name { flex: 1; text-align: left; font-size: 1.8rem; font-weight: 700; }
+.finale-score { font-size: 2.5rem; font-weight: 900; color: var(--accent); }
+
+/* Grid — more categories */
+.grid { max-width: 1600px; }
+.cell.category-name { font-size: 1.1rem; }
+
 .mt-20 { margin-top: 20px; }
 .mb-10 { margin-bottom: 10px; }
 .mt-auto { margin-top: auto; }
