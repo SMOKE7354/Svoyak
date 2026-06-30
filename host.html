@@ -25,6 +25,12 @@
         </div>
     </header>
 
+    <div id="firebase-setup-banner" class="firebase-setup-banner hidden">
+        <strong>⚠ Два ноутбука:</strong> нужна настройка Firebase (5 мин, один раз).
+        Откройте файл <code>js/firebase-config.js</code> в проекте — там пошаговая инструкция.
+        Пока Firebase не настроен, игра работает только на <strong>одном компьютере</strong> (две вкладки).
+    </div>
+
     <!-- Lobby -->
     <div id="host-lobby-screen" class="host-fullscreen active">
         <div class="host-lobby-panel glass-panel">
@@ -159,7 +165,6 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="js/firebase-config.js"></script>
     <script src="js/data.js"></script>
     <script src="js/sync.js"></script>
