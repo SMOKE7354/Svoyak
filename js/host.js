@@ -1,7 +1,7 @@
 let state = createInitialState();
 let timerInterval = null;
 let lastBoardKey = '';
-let lastScreen = null;
+let awardPanelBuilt = false;
 
 const hostLobbyScreen = document.getElementById('host-lobby-screen');
 const hostGameScreen = document.getElementById('host-game-screen');
@@ -10,8 +10,10 @@ const hostQuestionScreen = document.getElementById('host-question-screen');
 const hostGrid = document.getElementById('host-grid');
 const hostRoundIndicator = document.getElementById('host-round-indicator');
 const hostProgress = document.getElementById('host-progress');
+const hostProgressWrap = document.getElementById('host-progress-wrap');
+const hostProgressFill = document.getElementById('host-progress-fill');
 const sidebarPlayersList = document.getElementById('sidebar-players-list');
-const quickScorePanel = document.getElementById('quick-score-panel');
+const awardPanel = document.getElementById('award-panel');
 const hostTimerBadge = document.getElementById('host-timer-badge');
 const hostTimerVal = document.getElementById('host-timer-val');
 const hostToBoardBtn = document.getElementById('host-to-board-btn');
@@ -34,7 +36,7 @@ function init() {
 
     if (gameSync.needsFirebaseSetup() && firebaseBanner) {
         firebaseBanner.classList.remove('hidden');
-        firebaseBanner.textContent = 'Настройте Firebase в js/firebase-config.js для двух ноутбуков';
+        firebaseBanner.textContent = 'Настройте Firebase в js/firebase-config.js — иначе два ноутбука не синхронизируются';
     }
 
     gameSync.initHost({
@@ -56,7 +58,7 @@ function init() {
 
 function updateHostConnectionStatus(ok) {
     if (!hostStatus) return;
-    hostStatus.textContent = ok ? 'TV online' : 'TV offline';
+    hostStatus.textContent = ok ? 'Табло online' : 'Табло offline';
     hostStatus.className = `host-status ${ok ? 'connected' : 'disconnected'}`;
 }
 
@@ -67,8 +69,8 @@ function saveState(full = true) {
 }
 
 function refreshScores() {
-    renderSidebar();
-    if (state.screen === 'question') renderQuickScore();
+    updateScoreValues();
+    if (state.screen === 'question') updateAwardScores();
 }
 
 function setupEventListeners() {
@@ -76,7 +78,7 @@ function setupEventListeners() {
     playerInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPlayer(); });
 
     document.querySelectorAll('.round-btn').forEach(btn => {
-        btn.addEventListener('click', () => startRound(parseInt(btn.dataset.round)));
+        btn.addEventListener('click', () => startRound(parseInt(btn.dataset.round, 10)));
     });
 
     document.getElementById('reset-game-btn').addEventListener('click', resetGame);
@@ -84,34 +86,45 @@ function setupEventListeners() {
     document.getElementById('close-question-btn').addEventListener('click', goToBoard);
     hostToBoardBtn?.addEventListener('click', goToBoard);
     document.getElementById('nobody-answered-btn').addEventListener('click', nobodyAnswered);
-    document.getElementById('show-answer-btn').addEventListener('click', () => {
-        state.showAnswer = true;
-        stopTimer();
-        saveState(false);
-        gameSync.save(state);
-    });
+    document.getElementById('show-answer-btn').addEventListener('click', showAnswer);
     document.getElementById('start-timer-btn').addEventListener('click', startTimer);
     document.getElementById('stop-timer-btn')?.addEventListener('click', stopTimer);
 
-    document.addEventListener('keydown', (e) => {
-        if (state.screen !== 'question' || !state.currentQuestion) return;
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-        if (e.code === 'Space') { e.preventDefault(); startTimer(); }
-        if (e.code === 'KeyA') { state.showAnswer = true; stopTimer(); gameSync.save(state); }
-        if (e.code === 'Escape') goToBoard();
-        if (e.code === 'KeyN') nobodyAnswered();
-    });
+    document.addEventListener('keydown', handleHotkey);
+}
+
+function handleHotkey(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+    if (state.screen === 'question' && state.currentQuestion) {
+        if (e.code === 'Space') { e.preventDefault(); startTimer(); return; }
+        if (e.code === 'KeyA') { showAnswer(); return; }
+        if (e.code === 'Escape') { goToBoard(); return; }
+        if (e.code === 'KeyN') { nobodyAnswered(); return; }
+
+        const digit = parseInt(e.key, 10);
+        if (digit >= 1 && digit <= 9 && state.players[digit - 1]) {
+            const player = state.players[digit - 1];
+            const price = state.currentQuestion.price;
+            changeScore(player.id, e.shiftKey ? -price : price);
+        }
+    }
 }
 
 function addPlayer() {
     const name = playerInput.value.trim();
     if (!name) return;
+    if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+        playerInput.focus();
+        return;
+    }
     state.players.push({ id: Date.now().toString(), name, score: 0 });
     playerInput.value = '';
     saveState();
 }
 
 function removePlayer(id) {
+    if (state.screen === 'board' || state.screen === 'question') return;
     state.players = state.players.filter(p => p.id !== id);
     saveState();
 }
@@ -129,42 +142,53 @@ function startRound(roundId) {
     state.roundAnnouncement = Date.now();
     if (!Array.isArray(state.playedQuestions)) state.playedQuestions = [];
     lastBoardKey = '';
-    stopTimer();
+    awardPanelBuilt = false;
+    stopTimer(true);
     saveState();
 }
 
 function endRound() {
     const progress = getRoundProgress(state.currentRound, state.playedQuestions);
     if (progress.played < progress.total) {
-        if (!confirm(`Сыграно ${progress.played}/${progress.total}. Завершить?`)) return;
+        if (!confirm(`Сыграно ${progress.played} из ${progress.total}. Завершить раунд?`)) return;
     }
     if (state.currentRound >= 3) {
         state.screen = 'finale';
         state.currentQuestion = null;
-        stopTimer();
+        stopTimer(true);
         saveState();
         return;
     }
     state.screen = 'lobby';
     state.currentQuestion = null;
     lastBoardKey = '';
-    stopTimer();
+    awardPanelBuilt = false;
+    stopTimer(true);
     saveState();
 }
 
 function resetGame() {
-    if (!confirm('Новая игра?')) return;
-    stopTimer();
+    if (!confirm('Начать новую игру? Все очки будут сброшены.')) return;
+    stopTimer(true);
     lastBoardKey = '';
+    awardPanelBuilt = false;
     state = gameSync.reset();
     renderAll();
 }
 
 function openQuestion(categoryName, q) {
-    state.currentQuestion = { categoryName, id: q.id, price: q.price, text: q.text, answer: q.answer, image: q.image };
+    state.currentQuestion = {
+        categoryName,
+        id: q.id,
+        price: q.price,
+        text: q.text,
+        answer: q.answer,
+        image: q.image
+    };
     state.screen = 'question';
     state.showAnswer = false;
-    stopTimer();
+    awardPanelBuilt = false;
+    stopTimer(true);
     saveState();
 }
 
@@ -178,19 +202,26 @@ function goToBoard() {
     state.currentQuestion = null;
     state.screen = 'board';
     state.showAnswer = false;
-    stopTimer();
+    awardPanelBuilt = false;
+    stopTimer(true);
     saveState();
 }
 
 function nobodyAnswered() {
     if (!state.currentQuestion) return;
     triggerEffect('wrong');
-    setTimeout(goToBoard, 600);
+    setTimeout(goToBoard, 500);
+}
+
+function showAnswer() {
+    state.showAnswer = true;
+    stopTimer(true);
+    gameSync.save(state);
 }
 
 function startTimer() {
     if (timerInterval) clearInterval(timerInterval);
-    const duration = parseInt(document.getElementById('timer-val').value) || 30;
+    const duration = parseInt(document.getElementById('timer-val').value, 10) || 30;
     state.timerValue = duration;
     state.timerActive = true;
     gameSync.save(state);
@@ -210,15 +241,17 @@ function startTimer() {
     }, 1000);
 }
 
-function stopTimer() {
+function stopTimer(silent = false) {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = null;
     state.timerValue = null;
     state.timerActive = false;
     updateTimerUI();
+    if (!silent) gameSync.save(state);
 }
 
 function updateTimerUI() {
+    if (!hostTimerBadge) return;
     if (state.timerValue != null) {
         hostTimerBadge.classList.remove('hidden');
         hostTimerVal.textContent = state.timerValue;
@@ -230,12 +263,23 @@ function updateTimerUI() {
 
 function changeScore(playerId, amount) {
     const player = state.players.find(p => p.id === playerId);
-    if (!player) return;
+    if (!player || !amount) return;
     player.score += amount;
+
     if (amount > 0) triggerEffect('correct');
-    else if (amount < 0) triggerEffect('wrong');
-    else gameSync.save(state);
+    else triggerEffect('wrong');
+
+    flashScore(playerId, amount > 0 ? 'up' : 'down');
     refreshScores();
+}
+
+function flashScore(playerId, direction) {
+    const el = document.querySelector(`.s-val[data-id="${playerId}"]`);
+    if (!el) return;
+    el.classList.remove('flash-up', 'flash-down');
+    void el.offsetWidth;
+    el.classList.add(direction === 'up' ? 'flash-up' : 'flash-down');
+    setTimeout(() => el.classList.remove('flash-up', 'flash-down'), 400);
 }
 
 function triggerEffect(effectName) {
@@ -252,28 +296,37 @@ function renderAll() {
     hostGameScreen.classList.toggle('active', inGame);
     hostGameScreen.classList.toggle('hidden', !inGame);
 
+    hostProgressWrap?.classList.toggle('hidden', !inGame);
+
     if (inGame) renderGame();
     else renderLobby();
 }
 
 function renderLobby() {
-    playersList.innerHTML = state.players.map(p =>
-        `<li><span>${p.name}</span><button type="button" onclick="removePlayer('${p.id}')">✕</button></li>`
-    ).join('');
+    hostRoundIndicator.textContent = state.screen === 'finale' ? 'Финал' : 'Лобби';
+
+    playersList.innerHTML = state.players.length
+        ? state.players.map(p =>
+            `<li><span>${escapeHtml(p.name)}</span><button type="button" onclick="removePlayer('${p.id}')" aria-label="Удалить">×</button></li>`
+        ).join('')
+        : '<li class="empty-chip">Пока никого нет</li>';
 
     const has = state.players.length > 0;
     const between = state.screen === 'lobby' || state.screen === 'finale';
+
     document.querySelectorAll('.round-btn').forEach(btn => {
-        const id = parseInt(btn.dataset.round);
-        btn.disabled = !has || (id > 1 && state.currentRound < id - 1) || (between && id <= state.currentRound && state.currentRound > 0);
+        const id = parseInt(btn.dataset.round, 10);
+        const locked = id > 1 && state.currentRound < id - 1;
+        const done = between && id <= state.currentRound && state.currentRound > 0;
+        btn.disabled = !has || locked || done;
         btn.classList.toggle('completed', state.currentRound > id);
     });
 
-    if (!has) roundHint.textContent = 'Добавьте игроков';
-    else if (state.screen === 'finale') roundHint.textContent = 'Игра окончена!';
-    else if (!state.currentRound) roundHint.textContent = 'Запустите раунд 1';
-    else if (state.currentRound < 3) roundHint.textContent = `Раунд ${state.currentRound} done → раунд ${state.currentRound + 1}`;
-    else roundHint.textContent = 'Завершите раунд 3';
+    if (!has) roundHint.textContent = 'Добавьте хотя бы одного игрока';
+    else if (state.screen === 'finale') roundHint.textContent = '🎉 Игра завершена! Можно начать новую.';
+    else if (!state.currentRound) roundHint.textContent = 'Все готово — запускайте раунд 1';
+    else if (state.currentRound < 3) roundHint.textContent = `Раунд ${state.currentRound} завершён — можно начать раунд ${state.currentRound + 1}`;
+    else roundHint.textContent = 'После раунда 3 нажмите «Завершить раунд» в игре';
 }
 
 function renderGame() {
@@ -281,23 +334,26 @@ function renderGame() {
     if (round) hostRoundIndicator.textContent = round.title;
 
     const prog = getRoundProgress(state.currentRound, state.playedQuestions);
-    hostProgress.textContent = `${prog.played}/${prog.total}`;
-    hostProgress.classList.remove('hidden');
+    if (hostProgress) hostProgress.textContent = `${prog.played} / ${prog.total}`;
+    if (hostProgressFill && prog.total > 0) {
+        hostProgressFill.style.width = `${Math.round((prog.played / prog.total) * 100)}%`;
+    }
 
     const onQuestion = state.screen === 'question';
     hostBoardScreen.classList.toggle('active', !onQuestion);
+    hostBoardScreen.classList.toggle('hidden', onQuestion);
     hostQuestionScreen.classList.toggle('active', onQuestion);
+    hostQuestionScreen.classList.toggle('hidden', !onQuestion);
     hostToBoardBtn?.classList.toggle('hidden', !onQuestion);
 
     if (!onQuestion) renderBoardIfNeeded();
     else renderQuestion();
 
     renderSidebar();
-    lastScreen = state.screen;
 }
 
 function renderBoardIfNeeded() {
-    const key = `${state.currentRound}:${state.playedQuestions.join(',')}`;
+    const key = `${state.currentRound}:${(state.playedQuestions || []).join(',')}`;
     if (key === lastBoardKey && hostGrid.children.length) return;
     lastBoardKey = key;
     renderBoard();
@@ -312,7 +368,7 @@ function renderBoard() {
 
     hostGrid.innerHTML = '';
     hostGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    hostGrid.style.gridTemplateRows = `auto repeat(5, minmax(44px, 1fr))`;
+    hostGrid.style.gridTemplateRows = `auto repeat(5, minmax(46px, 1fr))`;
 
     round.categories.forEach(cat => {
         const cell = document.createElement('div');
@@ -321,22 +377,19 @@ function renderBoard() {
         hostGrid.appendChild(cell);
     });
 
-    let idx = 0;
     for (let i = 0; i < 5; i++) {
         round.categories.forEach(cat => {
             const q = cat.questions[i];
             if (!q) return;
             const cell = document.createElement('div');
-            cell.className = 'cell question-cell host-question-cell';
+            cell.className = 'cell question-cell';
             if (played.includes(q.id)) {
                 cell.classList.add('played');
-                cell.textContent = '—';
             } else {
                 cell.textContent = q.price;
                 cell.onclick = () => openQuestion(cat.name, q);
             }
             hostGrid.appendChild(cell);
-            idx++;
         });
     }
 }
@@ -348,42 +401,77 @@ function renderQuestion() {
     hostQText.textContent = state.currentQuestion.text;
     hostQAnswer.textContent = state.currentQuestion.answer;
     updateTimerUI();
-    renderQuickScore();
-}
-
-function renderQuickScore() {
-    if (!state.currentQuestion || !quickScorePanel) return;
-    const price = state.currentQuestion.price;
-    quickScorePanel.innerHTML = state.players.map(p => `
-        <div class="quick-score-row">
-            <span class="qs-name">${p.name}</span>
-            <button class="btn-sm danger" onclick="changeScore('${p.id}', -${price})">−${price}</button>
-            <button class="btn-sm success" onclick="changeScore('${p.id}', ${price})">+${price}</button>
-        </div>
-    `).join('');
+    renderAwardPanel();
 }
 
 function renderSidebar() {
     if (!sidebarPlayersList) return;
-    const onQ = state.screen === 'question' && state.currentQuestion;
-    const price = onQ ? state.currentQuestion.price : 0;
 
-    sidebarPlayersList.innerHTML = state.players.map(p => {
-        if (onQ) {
-            return `<div class="player-row compact">
-                <span class="p-name">${p.name}</span>
-                <span class="p-score" data-id="${p.id}">${p.score}</span>
-                <div class="p-btns">
-                    <button class="btn-sm danger" onclick="changeScore('${p.id}', -${price})">−</button>
-                    <button class="btn-sm success" onclick="changeScore('${p.id}', ${price})">+</button>
+    const samePlayers = sidebarPlayersList.dataset.count === String(state.players.length);
+    if (samePlayers && sidebarPlayersList.children.length) {
+        updateScoreValues();
+        return;
+    }
+
+    sidebarPlayersList.dataset.count = String(state.players.length);
+    sidebarPlayersList.innerHTML = state.players.map((p, i) => `
+        <div class="score-row">
+            <span class="s-name">${i + 1}. ${escapeHtml(p.name)}</span>
+            <span class="s-val" data-id="${p.id}">${p.score}</span>
+        </div>
+    `).join('');
+}
+
+function updateScoreValues() {
+    state.players.forEach(p => {
+        const el = document.querySelector(`.s-val[data-id="${p.id}"]`);
+        if (el) el.textContent = p.score;
+    });
+}
+
+function renderAwardPanel() {
+    if (!awardPanel || !state.currentQuestion) return;
+    const price = state.currentQuestion.price;
+
+    if (!awardPanelBuilt) {
+        awardPanel.innerHTML = state.players.map((p, i) => `
+            <div class="award-card" data-player-id="${p.id}">
+                <span class="a-name">${i + 1}. ${escapeHtml(p.name)}</span>
+                <span class="a-score">Сейчас: <span data-award-id="${p.id}">${p.score}</span></span>
+                <div class="award-btns">
+                    <button class="btn-minus" type="button" data-action="minus" data-id="${p.id}">−${price}</button>
+                    <button class="btn-plus" type="button" data-action="plus" data-id="${p.id}">+${price}</button>
                 </div>
-            </div>`;
-        }
-        return `<div class="player-row compact">
-            <span class="p-name">${p.name}</span>
-            <span class="p-score" data-id="${p.id}">${p.score}</span>
-        </div>`;
-    }).join('');
+            </div>
+        `).join('');
+
+        awardPanel.querySelectorAll('button[data-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const delta = btn.dataset.action === 'plus' ? price : -price;
+                changeScore(id, delta);
+            });
+        });
+
+        awardPanelBuilt = true;
+    } else {
+        updateAwardScores();
+    }
+}
+
+function updateAwardScores() {
+    state.players.forEach(p => {
+        const el = document.querySelector(`[data-award-id="${p.id}"]`);
+        if (el) el.textContent = p.score;
+    });
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 window.removePlayer = removePlayer;
