@@ -32,6 +32,8 @@ const hostStatus = document.getElementById('host-status');
 const hostRoomCode = document.getElementById('host-room-code');
 const hostSyncHint = document.getElementById('host-sync-hint');
 const firebaseBanner = document.getElementById('firebase-setup-banner');
+const hostToBoardBtn = document.getElementById('host-to-board-btn');
+const hostSidebarBoardBtn = document.getElementById('host-sidebar-board-btn');
 
 function init() {
     state = gameSync.load();
@@ -49,9 +51,20 @@ function init() {
             if (hostSyncHint) {
                 hostSyncHint.textContent = gameSync.getSyncHint(mode);
             }
+            if (firebaseBanner && mode === 'cloud') {
+                firebaseBanner.classList.add('hidden');
+            }
         },
         onDisplayConnected: () => updateHostConnectionStatus(true),
         onDisplayDisconnected: () => updateHostConnectionStatus(false)
+    }).catch((err) => {
+        if (hostSyncHint) {
+            hostSyncHint.textContent = err.message || 'Ошибка Firebase';
+        }
+        if (firebaseBanner) {
+            firebaseBanner.classList.remove('hidden');
+            firebaseBanner.innerHTML = `<strong>Ошибка Firebase:</strong> ${err.message || 'проверьте Rules'}`;
+        }
     });
 
     renderAll();
@@ -83,7 +96,9 @@ function setupEventListeners() {
 
     document.getElementById('reset-game-btn').addEventListener('click', resetGame);
     document.getElementById('end-round-btn').addEventListener('click', endRound);
-    document.getElementById('close-question-btn').addEventListener('click', closeQuestion);
+    document.getElementById('close-question-btn').addEventListener('click', goToBoard);
+    hostToBoardBtn?.addEventListener('click', goToBoard);
+    hostSidebarBoardBtn?.addEventListener('click', goToBoard);
     document.getElementById('nobody-answered-btn').addEventListener('click', nobodyAnswered);
     document.getElementById('show-answer-btn').addEventListener('click', () => {
         state.showAnswer = true;
@@ -101,7 +116,7 @@ function setupEventListeners() {
 
         if (e.code === 'Space') { e.preventDefault(); startTimer(); }
         if (e.code === 'KeyA') { state.showAnswer = true; stopTimer(); saveState(); }
-        if (e.code === 'Escape') closeQuestion();
+        if (e.code === 'Escape') goToBoard();
         if (e.code === 'KeyN') nobodyAnswered();
     });
 }
@@ -132,6 +147,7 @@ function startRound(roundId) {
     state.currentQuestion = null;
     state.showAnswer = false;
     state.roundAnnouncement = Date.now();
+    if (!Array.isArray(state.playedQuestions)) state.playedQuestions = [];
     stopTimer();
     saveState();
 }
@@ -180,16 +196,21 @@ function openQuestion(categoryName, q) {
     saveState();
 }
 
-function closeQuestion() {
-    if (!state.currentQuestion) return;
-    if (!state.playedQuestions.includes(state.currentQuestion.id)) {
-        state.playedQuestions.push(state.currentQuestion.id);
+function goToBoard() {
+    if (state.screen === 'question' && state.currentQuestion) {
+        if (!state.playedQuestions.includes(state.currentQuestion.id)) {
+            state.playedQuestions.push(state.currentQuestion.id);
+        }
     }
     state.currentQuestion = null;
     state.screen = 'board';
     state.showAnswer = false;
     stopTimer();
     saveState();
+}
+
+function closeQuestion() {
+    goToBoard();
 }
 
 function nobodyAnswered() {
@@ -327,12 +348,16 @@ function renderGame() {
         hostBoardScreen.classList.remove('hidden');
         hostQuestionScreen.classList.remove('active');
         hostQuestionScreen.classList.add('hidden');
+        hostToBoardBtn?.classList.add('hidden');
+        hostSidebarBoardBtn?.classList.add('hidden');
         renderBoard();
     } else if (state.screen === 'question') {
         hostBoardScreen.classList.remove('active');
         hostBoardScreen.classList.add('hidden');
         hostQuestionScreen.classList.add('active');
         hostQuestionScreen.classList.remove('hidden');
+        hostToBoardBtn?.classList.remove('hidden');
+        hostSidebarBoardBtn?.classList.remove('hidden');
         renderQuestion();
     }
 
@@ -345,8 +370,11 @@ function renderBoard() {
     if (!round) return;
 
     hostGrid.innerHTML = '';
-    hostGrid.style.gridTemplateColumns = `repeat(${round.categories.length}, 1fr)`;
-    hostGrid.style.gridTemplateRows = `auto repeat(5, 1fr)`;
+    const cols = round.categories.length;
+    hostGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    hostGrid.style.gridTemplateRows = `auto repeat(5, minmax(50px, 1fr))`;
+
+    const played = state.playedQuestions || [];
 
     round.categories.forEach(cat => {
         const cell = document.createElement('div');
@@ -361,8 +389,8 @@ function renderBoard() {
             if (!q) return;
             const cell = document.createElement('div');
             cell.className = 'cell question-cell host-question-cell';
-            const played = state.playedQuestions.includes(q.id);
-            if (played) {
+            const playedCell = played.includes(q.id);
+            if (playedCell) {
                 cell.classList.add('played');
                 cell.textContent = '—';
             } else {

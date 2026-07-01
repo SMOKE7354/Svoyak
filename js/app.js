@@ -45,14 +45,21 @@ function setupConnectUI() {
 
 function connectToGame() {
     connectBtn.disabled = true;
-    connectStatus.textContent = 'Подключение…';
+    connectStatus.textContent = 'Подключение к Firebase…';
     connectStatus.className = 'connect-status';
+
+    if (!gameSync.isFirebaseReady()) {
+        connectBtn.disabled = false;
+        connectStatus.textContent = 'Firebase не настроен на сайте. Залейте firebase-config.js на GitHub.';
+        connectStatus.className = 'connect-status error';
+        return;
+    }
 
     gameSync.initDisplay(gameSync.getRoomCode(), {
         onState: (newState) => {
             if (!connected) {
                 connected = true;
-                hideConnectScreen();
+                hideConnectScreen('cloud');
             }
             onStateUpdate(newState);
         },
@@ -62,16 +69,17 @@ function connectToGame() {
         },
         onDisconnected: () => {
             connected = false;
-            showConnectScreen('Связь потеряна. Обновите страницу.');
+            showConnectScreen('Связь с Firebase потеряна. Обновите страницу.');
         }
     }).then((result) => {
         if (!connected) {
             connected = true;
-            hideConnectScreen(result?.mode || 'local');
+            hideConnectScreen(result?.mode || 'cloud');
         }
+        connectStatus.textContent = '';
     }).catch((err) => {
         connectBtn.disabled = false;
-        connectStatus.textContent = err.message || 'Ошибка подключения';
+        connectStatus.textContent = err.message || 'Ошибка подключения к Firebase';
         connectStatus.className = 'connect-status error';
     });
 }
@@ -106,7 +114,7 @@ function showConnectScreen(message) {
 
 function onStateUpdate(newState) {
     const prevAnnouncement = state.roundAnnouncement;
-    state = newState;
+    state = normalizeState(newState);
     renderScreen();
 
     if (state.roundAnnouncement && state.roundAnnouncement !== prevAnnouncement) {
@@ -158,6 +166,12 @@ function playEffect(effectName) {
 function renderScreen() {
     if (state.roundAnnouncement && Date.now() - state.roundAnnouncement < 3500) {
         return;
+    }
+
+    if (state.screen === 'board' || state.screen === 'question') {
+        if (!state.currentRound || !getRoundData(state.currentRound)) {
+            state.screen = 'lobby';
+        }
     }
 
     Object.values(screens).forEach(s => {
@@ -215,11 +229,14 @@ function renderBoard() {
     const round = getRoundData(state.currentRound);
     if (!round) return;
 
+    const played = state.playedQuestions || [];
+
     boardRoundBadge.textContent = round.title;
 
     grid.innerHTML = '';
-    grid.style.gridTemplateColumns = `repeat(${round.categories.length}, 1fr)`;
-    grid.style.gridTemplateRows = `auto repeat(5, 1fr)`;
+    const cols = round.categories.length;
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = `auto repeat(5, minmax(70px, 1fr))`;
 
     round.categories.forEach(cat => {
         const cell = document.createElement('div');
@@ -234,8 +251,9 @@ function renderBoard() {
             if (!q) return;
             const cell = document.createElement('div');
             cell.className = 'cell question-cell';
-            if (state.playedQuestions.includes(q.id)) {
+            if (played.includes(q.id)) {
                 cell.classList.add('played');
+                cell.textContent = '';
             } else {
                 cell.textContent = q.price;
             }

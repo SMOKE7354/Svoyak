@@ -17,10 +17,29 @@ function createInitialState() {
     };
 }
 
+function normalizeState(raw) {
+    const base = createInitialState();
+    if (!raw || typeof raw !== 'object') return base;
+    return {
+        ...base,
+        ...raw,
+        players: Array.isArray(raw.players) ? raw.players : [],
+        playedQuestions: Array.isArray(raw.playedQuestions) ? raw.playedQuestions : []
+    };
+}
+
 function isFirebaseReady() {
     return typeof firebase !== 'undefined'
         && window.firebaseConfig?.databaseURL
         && window.firebaseConfig?.apiKey;
+}
+
+function firebaseErrorMessage(err) {
+    const msg = err?.message || String(err);
+    if (msg.includes('PERMISSION_DENIED') || msg.includes('permission_denied')) {
+        return 'Firebase: нет доступа. Откройте Realtime Database → Rules и опубликуйте: .read: true, .write: true';
+    }
+    return 'Firebase: ' + msg;
 }
 
 const gameSync = {
@@ -43,7 +62,7 @@ const gameSync = {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
             try {
-                return JSON.parse(saved);
+                return normalizeState(JSON.parse(saved));
             } catch {
                 return createInitialState();
             }
@@ -52,10 +71,13 @@ const gameSync = {
     },
 
     save(state, notifyLocal = true) {
+        state = normalizeState(state);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
         if (this.syncMode === 'cloud' && this.mode === 'host' && this._stateRef) {
-            this._stateRef.set(state).catch((err) => console.warn('Firebase save:', err));
+            this._stateRef.set(state).catch((err) => {
+                console.error('Firebase save error:', err);
+            });
         }
 
         if (this._channel) {
@@ -96,11 +118,16 @@ const gameSync = {
     _getDb() {
         if (this._db) return this._db;
         if (!isFirebaseReady()) return null;
-        if (!firebase.apps.length) {
-            firebase.initializeApp(window.firebaseConfig);
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(window.firebaseConfig);
+            }
+            this._db = firebase.database();
+            return this._db;
+        } catch (err) {
+            console.error('Firebase init error:', err);
+            return null;
         }
-        this._db = firebase.database();
-        return this._db;
     },
 
     _initCloudHost(callbacks) {
@@ -111,16 +138,21 @@ const gameSync = {
         this.syncMode = 'cloud';
         this._stateRef = db.ref(`rooms/${ROOM_CODE}/state`);
 
-        db.ref(`rooms/${ROOM_CODE}/displayOnline`).on('value', (snap) => {
-            const online = !!snap.val();
-            this.displayConnected = online;
-            if (online) callbacks.onDisplayConnected?.();
-            else callbacks.onDisplayDisconnected?.();
-        });
-
-        this.save(this.load());
-        callbacks.onReady?.(ROOM_CODE, 'cloud');
-        return Promise.resolve({ code: ROOM_CODE, mode: 'cloud' });
+        return this._stateRef.set(this.load())
+            .then(() => {
+                db.ref(`rooms/${ROOM_CODE}/displayOnline`).on('value', (snap) => {
+                    const online = !!snap.val();
+                    this.displayConnected = online;
+                    if (online) callbacks.onDisplayConnected?.();
+                    else callbacks.onDisplayDisconnected?.();
+                });
+                callbacks.onReady?.(ROOM_CODE, 'cloud');
+                return { code: ROOM_CODE, mode: 'cloud' };
+            })
+            .catch((err) => {
+                this.syncMode = 'local';
+                throw new Error(firebaseErrorMessage(err));
+            });
     },
 
     _initCloudDisplay(callbacks) {
@@ -131,21 +163,28 @@ const gameSync = {
         this.syncMode = 'cloud';
 
         const onlineRef = db.ref(`rooms/${ROOM_CODE}/displayOnline`);
-        onlineRef.set(true);
-        onlineRef.onDisconnect().set(false);
-
         const stateRef = db.ref(`rooms/${ROOM_CODE}/state`);
-        stateRef.on('value', (snap) => {
-            const val = snap.val();
-            if (val && typeof val === 'object' && val.screen !== undefined) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(val));
-                callbacks.onState?.(val);
-                this._listeners.forEach(fn => fn(val));
-            }
-        });
 
-        callbacks.onConnected?.(ROOM_CODE, 'cloud');
-        return Promise.resolve({ code: ROOM_CODE, mode: 'cloud' });
+        return onlineRef.set(true)
+            .then(() => {
+                onlineRef.onDisconnect().set(false);
+
+                stateRef.on('value', (snap) => {
+                    const val = snap.val();
+                    if (val && typeof val === 'object' && val.screen !== undefined) {
+                        const normalized = normalizeState(val);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+                        callbacks.onState?.(normalized);
+                        this._listeners.forEach(fn => fn(normalized));
+                    }
+                });
+
+                callbacks.onConnected?.(ROOM_CODE, 'cloud');
+                return { code: ROOM_CODE, mode: 'cloud' };
+            })
+            .catch((err) => {
+                throw new Error(firebaseErrorMessage(err));
+            });
     },
 
     _initLocalHost(callbacks) {
@@ -174,7 +213,7 @@ const gameSync = {
         this.mode = 'display';
         this.syncMode = 'local';
 
-        this.subscribe((state) => callbacks.onState?.(state));
+        this.subscribe((s) => callbacks.onState?.(s));
 
         if (this._channel) {
             this._channel.postMessage({ type: 'display-online' });
@@ -205,10 +244,8 @@ const gameSync = {
     },
 
     getSyncHint(mode) {
-        if (mode === 'cloud') {
-            return 'Облако — работает на двух ноутбуках';
-        }
-        return 'Один компьютер (2 вкладки). Для 2 ноутбуков — настройте Firebase';
+        if (mode === 'cloud') return 'Firebase — два ноутбука';
+        return 'Локально — только 2 вкладки на одном ПК';
     },
 
     needsFirebaseSetup() {
