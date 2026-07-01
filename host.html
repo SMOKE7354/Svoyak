@@ -87,6 +87,7 @@
                     </button>
                 </div>
                 <p id="round-hint" class="round-hint">Добавьте хотя бы одного игрока</p>
+                <a href="editor.html" class="host-editor-link">✎ Редактор вопросов — свои категории и картинки</a>
             </section>
         </div>
     </div>
@@ -98,6 +99,16 @@
                 <div class="sidebar-block">
                     <h3 class="sidebar-label">Счёт</h3>
                     <div id="sidebar-players-list" class="sidebar-scores"></div>
+                </div>
+
+                <div class="sidebar-block">
+                    <h3 class="sidebar-label">Выдать очки</h3>
+                    <div class="custom-points-row">
+                        <input type="number" id="custom-points-val" class="host-input-num" value="100" min="1" step="50" title="Количество очков">
+                        <button type="button" class="host-btn host-btn-ghost btn-quick-pts" data-delta="100">+100</button>
+                        <button type="button" class="host-btn host-btn-ghost btn-quick-pts" data-delta="500">+500</button>
+                    </div>
+                    <div id="custom-award-list" class="custom-award-list"></div>
                 </div>
 
                 <div class="sidebar-block">
@@ -180,9 +191,9 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-    <script src="js/firebase-config.js?v=6"></script>
-    <script src="js/data.js?v=6"></script>
-    <script src="js/sync.js?v=6"></script>
-    <script src="js/host.js?v=6"></script>
+    <script src="js/firebase-config.js?v=7"></script>
+    <script src="js/data.js?v=7"></script>
+    <script src="js/sync.js?v=7"></script>
+    <script src="js/host.js?v=7"></script>
 </body>
 </html>
