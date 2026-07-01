@@ -148,6 +148,18 @@ body {
 .question-container {
     flex: 1; width: 100%; max-width: 1200px; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; padding: 60px; margin-bottom: 40px;
+    animation: questionReveal 0.5s ease forwards;
+}
+@keyframes questionReveal {
+    0% { opacity: 0; transform: scale(0.96); }
+    100% { opacity: 1; transform: scale(1); }
+}
+.question-answer {
+    animation: answerSlide 0.4s ease forwards;
+}
+@keyframes answerSlide {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 #question-price { font-size: 3.5rem; margin-bottom: 20px; color: var(--text-muted); }
 .question-image {
@@ -217,17 +229,57 @@ body {
 .connect-status.error { color: var(--danger); }
 .host-link { color: var(--success); font-weight: 700; }
 
-/* Round splash */
-#round-screen { justify-content: center; align-items: center; }
-.round-splash { text-align: center; animation: roundIn 0.8s ease; }
-.round-number {
-    font-size: 8rem; font-weight: 900; color: var(--success);
-    line-height: 1; margin-bottom: 10px;
-    text-shadow: 0 0 60px rgba(0, 204, 102, 0.4);
+/* Round splash — шторка уходит вверх */
+#round-screen {
+    justify-content: center; align-items: center;
+    padding: 0; overflow: hidden;
 }
-.round-subtitle { font-size: 1.8rem; color: var(--text-muted); margin-top: 15px; }
+.round-curtain {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #0a1a0a 0%, #000 70%);
+    z-index: 50;
+    animation: curtainIn 0.6s ease forwards;
+}
+.round-curtain.exit {
+    animation: curtainUp 0.85s cubic-bezier(0.55, 0, 0.85, 0.36) forwards;
+}
+.round-splash { text-align: center; animation: roundIn 0.7s ease 0.15s both; }
+.round-number {
+    font-size: clamp(5rem, 15vw, 10rem); font-weight: 900; color: var(--success);
+    line-height: 1; margin-bottom: 10px;
+    text-shadow: 0 0 80px rgba(0, 204, 102, 0.5);
+}
+#round-title { font-size: clamp(2rem, 6vw, 4rem); }
+.round-subtitle { font-size: clamp(1.1rem, 3vw, 1.8rem); color: var(--text-muted); margin-top: 15px; }
+@keyframes curtainIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+@keyframes curtainUp {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-110%); opacity: 0.3; }
+}
 @keyframes roundIn {
-    0% { opacity: 0; transform: scale(0.8); }
+    0% { opacity: 0; transform: scale(0.7) translateY(30px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Плавное появление экранов */
+.screen-enter {
+    animation: screenFadeIn 0.45s ease forwards;
+}
+@keyframes screenFadeIn {
+    0% { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Ячейки табло — каскад */
+.cell-pop {
+    animation: cellPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes cellPop {
+    0% { opacity: 0; transform: scale(0.6); }
     100% { opacity: 1; transform: scale(1); }
 }
 
