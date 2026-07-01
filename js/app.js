@@ -3,6 +3,9 @@ let lastEffectTimestamp = 0;
 let roundAnnouncementTimer = null;
 let connected = false;
 let subscribed = false;
+let lastRenderedScreen = null;
+let lastBoardKey = '';
+let lastScoresKey = '';
 
 const connectScreen = document.getElementById('connect-screen');
 const connectBtn = document.getElementById('connect-btn');
@@ -94,7 +97,8 @@ function hideConnectScreen(mode) {
         subscribed = true;
     }
     state = gameSync.load();
-    renderScreen();
+    renderScreen(true);
+    updateTimerDisplay();
 
     if (mode === 'local' && gameSync.needsFirebaseSetup() && state.players.length === 0) {
         displayStatus.innerHTML = '<div class="pulse-dot connected"></div><span>Подключено (один компьютер). Для 2 ноутбуков — настройте Firebase</span>';
@@ -114,26 +118,66 @@ function showConnectScreen(message) {
     }
 }
 
+/** Ключ для полного перерендера — без таймера и эффектов */
+function visualStateKey(s) {
+    return [
+        s.screen,
+        s.currentRound,
+        (s.playedQuestions || []).join('|'),
+        s.players.map(p => `${p.id}:${p.name}:${p.score}`).join('|'),
+        s.currentQuestion?.id,
+        s.currentQuestion?.text,
+        s.currentQuestion?.image,
+        s.showAnswer,
+        s.roundAnnouncement
+    ].join('::');
+}
+
 function onStateUpdate(newState) {
     const prevAnnouncement = state.roundAnnouncement;
+    const prevVisualKey = visualStateKey(state);
+
     state = normalizeState(newState);
-    renderScreen();
+    const newVisualKey = visualStateKey(state);
+
+    if (newVisualKey !== prevVisualKey) {
+        renderScreen(false);
+    } else {
+        patchLiveFields();
+    }
 
     if (state.roundAnnouncement && state.roundAnnouncement !== prevAnnouncement) {
         showRoundAnnouncement();
     }
 
-    if (state.timerValue !== undefined && state.timerValue !== null) {
-        timerDisplay.textContent = state.timerValue;
-        timerDisplay.classList.remove('hidden');
-        timerDisplay.classList.toggle('danger-pulse', state.timerValue <= 5);
-    } else if (state.screen !== 'question') {
-        timerDisplay.classList.add('hidden');
-    }
+    updateTimerDisplay();
 
     if (state.effect && state.effectTimestamp && state.effectTimestamp !== lastEffectTimestamp) {
         lastEffectTimestamp = state.effectTimestamp;
         playEffect(state.effect);
+    }
+}
+
+function patchLiveFields() {
+    if (state.screen === 'question' && state.currentQuestion) {
+        if (state.showAnswer) {
+            questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${state.currentQuestion.answer}`;
+            questionAnswerDisplay.classList.remove('hidden');
+        } else {
+            questionAnswerDisplay.classList.add('hidden');
+        }
+    }
+    updateScoresInPlace();
+}
+
+function updateTimerDisplay() {
+    if (!timerDisplay) return;
+    if (state.screen === 'question' && state.timerValue !== undefined && state.timerValue !== null) {
+        timerDisplay.textContent = state.timerValue;
+        timerDisplay.classList.remove('hidden');
+        timerDisplay.classList.toggle('danger-pulse', state.timerValue <= 5);
+    } else {
+        timerDisplay.classList.add('hidden');
     }
 }
 
@@ -159,7 +203,7 @@ function showRoundAnnouncement() {
         if (roundCurtain) roundCurtain.classList.add('exit');
         setTimeout(() => {
             showingRoundSplash = false;
-            if (state.screen === 'board') renderScreen();
+            if (state.screen === 'board') renderScreen(false);
         }, 850);
     }, 2200);
 }
@@ -172,7 +216,7 @@ function playEffect(effectName) {
     }, 1500);
 }
 
-function renderScreen() {
+function renderScreen(forceAnimate) {
     if (showingRoundSplash) return;
 
     if (state.screen === 'board' || state.screen === 'question') {
@@ -180,6 +224,8 @@ function renderScreen() {
             state.screen = 'lobby';
         }
     }
+
+    const screenChanged = state.screen !== lastRenderedScreen;
 
     Object.values(screens).forEach(s => {
         if (s) { s.classList.remove('active'); s.classList.add('hidden'); }
@@ -189,21 +235,25 @@ function renderScreen() {
     if (screen) {
         screen.classList.remove('hidden');
         screen.classList.add('active');
-        screen.classList.add('screen-enter');
-        setTimeout(() => screen.classList.remove('screen-enter'), 500);
+        if (screenChanged || forceAnimate) {
+            screen.classList.add('screen-enter');
+            setTimeout(() => screen.classList.remove('screen-enter'), 500);
+        }
     }
+
+    lastRenderedScreen = state.screen;
 
     switch (state.screen) {
         case 'lobby':
             renderLobby();
             break;
         case 'board':
-            renderBoard();
-            renderScores();
+            renderBoardIfNeeded();
+            renderScoresIfNeeded();
             break;
         case 'question':
             renderQuestion();
-            renderScores();
+            renderScoresIfNeeded();
             break;
         case 'finale':
             renderFinale();
@@ -231,6 +281,13 @@ function renderLobby() {
         displayStatus.innerHTML = '<div class="pulse-dot"></div><span>Ожидание ведущего…</span>';
         displayPlayersPreview.classList.add('hidden');
     }
+}
+
+function renderBoardIfNeeded() {
+    const key = `${state.currentRound}:${(state.playedQuestions || []).join(',')}`;
+    if (key === lastBoardKey && grid?.children.length) return;
+    lastBoardKey = key;
+    renderBoard();
 }
 
 function renderBoard() {
@@ -276,20 +333,43 @@ function renderBoard() {
     }
 }
 
-function renderScores() {
-    const renderTo = (container) => {
-        if (!container) return;
-        container.innerHTML = '';
-        state.players.forEach((p, i) => {
-            const card = document.createElement('div');
-            card.className = 'player-score-card cell-pop';
-            card.style.animationDelay = `${i * 0.08}s`;
-            card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-score">${p.score}</div>`;
-            container.appendChild(card);
+function scoresKey() {
+    return state.players.map(p => `${p.id}:${p.score}`).join('|');
+}
+
+function renderScoresIfNeeded() {
+    const key = scoresKey();
+    const container = state.screen === 'board' ? playersScores : playersScoresQuestion;
+    if (!container) return;
+
+    if (key === lastScoresKey && container.children.length === state.players.length) {
+        updateScoresInPlace();
+        return;
+    }
+
+    lastScoresKey = key;
+    renderScores(container, true);
+}
+
+function renderScores(container, animate) {
+    if (!container) return;
+    container.innerHTML = '';
+    state.players.forEach((p, i) => {
+        const card = document.createElement('div');
+        card.className = animate ? 'player-score-card cell-pop' : 'player-score-card';
+        if (animate) card.style.animationDelay = `${i * 0.08}s`;
+        card.dataset.playerId = p.id;
+        card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-score">${p.score}</div>`;
+        container.appendChild(card);
+    });
+}
+
+function updateScoresInPlace() {
+    state.players.forEach(p => {
+        document.querySelectorAll(`.player-score-card[data-player-id="${p.id}"] .p-score`).forEach(el => {
+            el.textContent = p.score;
         });
-    };
-    if (state.screen === 'board') renderTo(playersScores);
-    if (state.screen === 'question') renderTo(playersScoresQuestion);
+    });
 }
 
 function renderQuestion() {
@@ -314,11 +394,7 @@ function renderQuestion() {
         questionAnswerDisplay.classList.add('hidden');
     }
 
-    if (state.timerValue !== undefined && state.timerValue !== null) {
-        timerDisplay.textContent = state.timerValue;
-        timerDisplay.classList.remove('hidden');
-        timerDisplay.classList.toggle('danger-pulse', state.timerValue <= 5);
-    }
+    updateTimerDisplay();
 }
 
 function renderFinale() {

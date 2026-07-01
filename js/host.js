@@ -13,6 +13,8 @@ const hostProgress = document.getElementById('host-progress');
 const hostProgressWrap = document.getElementById('host-progress-wrap');
 const hostProgressFill = document.getElementById('host-progress-fill');
 const sidebarPlayersList = document.getElementById('sidebar-players-list');
+const customAwardList = document.getElementById('custom-award-list');
+const customPointsVal = document.getElementById('custom-points-val');
 const awardPanel = document.getElementById('award-panel');
 const hostTimerBadge = document.getElementById('host-timer-badge');
 const hostTimerVal = document.getElementById('host-timer-val');
@@ -89,6 +91,23 @@ function setupEventListeners() {
     document.getElementById('show-answer-btn').addEventListener('click', showAnswer);
     document.getElementById('start-timer-btn').addEventListener('click', startTimer);
     document.getElementById('stop-timer-btn')?.addEventListener('click', stopTimer);
+
+    document.querySelectorAll('.btn-quick-pts').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (customPointsVal) customPointsVal.value = btn.dataset.delta;
+            if (customAwardList) {
+                customAwardList.dataset.count = '';
+                renderCustomAwardList();
+            }
+        });
+    });
+
+    customPointsVal?.addEventListener('input', () => {
+        if (customAwardList) {
+            customAwardList.dataset.count = '';
+            renderCustomAwardList();
+        }
+    });
 
     document.addEventListener('keydown', handleHotkey);
 }
@@ -261,6 +280,15 @@ function updateTimerUI() {
     }
 }
 
+function getCustomPoints() {
+    const v = parseInt(customPointsVal?.value, 10);
+    return Number.isFinite(v) && v > 0 ? v : 100;
+}
+
+function awardCustom(playerId, sign) {
+    changeScore(playerId, sign * getCustomPoints());
+}
+
 function changeScore(playerId, amount) {
     const player = state.players.find(p => p.id === playerId);
     if (!player || !amount) return;
@@ -350,6 +378,24 @@ function renderGame() {
     else renderQuestion();
 
     renderSidebar();
+    renderCustomAwardList();
+}
+
+function renderCustomAwardList() {
+    if (!customAwardList) return;
+    const pts = getCustomPoints();
+
+    const same = customAwardList.dataset.count === String(state.players.length);
+    if (same && customAwardList.children.length) return;
+
+    customAwardList.dataset.count = String(state.players.length);
+    customAwardList.innerHTML = state.players.map(p => `
+        <div class="custom-award-row">
+            <span class="ca-name">${escapeHtml(p.name)}</span>
+            <button type="button" class="host-btn host-btn-success host-btn-xs" onclick="awardCustom('${p.id}', 1)">+${pts}</button>
+            <button type="button" class="host-btn host-btn-danger-outline host-btn-xs" onclick="awardCustom('${p.id}', -1)">−</button>
+        </div>
+    `).join('');
 }
 
 function renderBoardIfNeeded() {
@@ -476,6 +522,7 @@ function escapeHtml(str) {
 
 window.removePlayer = removePlayer;
 window.changeScore = changeScore;
+window.awardCustom = awardCustom;
 window.triggerEffect = triggerEffect;
 
 init();

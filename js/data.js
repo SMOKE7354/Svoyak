@@ -1,4 +1,4 @@
-const gameRounds = [
+const DEFAULT_GAME_ROUNDS = [
     {
         id: 1,
         title: "Раунд 1",
@@ -204,6 +204,61 @@ const gameRounds = [
         ]
     }
 ];
+
+const CUSTOM_GAME_STORAGE_KEY = 'svoyak_custom_game';
+
+function loadGameRounds() {
+    try {
+        const saved = localStorage.getItem(CUSTOM_GAME_STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch { /* use default */ }
+    return DEFAULT_GAME_ROUNDS;
+}
+
+let gameRounds = loadGameRounds();
+
+const GameData = {
+    storageKey: CUSTOM_GAME_STORAGE_KEY,
+
+    getRounds() {
+        return gameRounds;
+    },
+
+    save(rounds) {
+        localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(rounds));
+        gameRounds = rounds;
+        window.dispatchEvent(new CustomEvent('svoyak-game-updated'));
+    },
+
+    resetToDefault() {
+        localStorage.removeItem(CUSTOM_GAME_STORAGE_KEY);
+        gameRounds = DEFAULT_GAME_ROUNDS;
+        window.dispatchEvent(new CustomEvent('svoyak-game-updated'));
+    },
+
+    reload() {
+        gameRounds = loadGameRounds();
+    },
+
+    exportJson() {
+        return JSON.stringify(gameRounds, null, 2);
+    },
+
+    importJson(json) {
+        const parsed = JSON.parse(json);
+        if (!Array.isArray(parsed) || !parsed.length) {
+            throw new Error('Нужен массив раундов');
+        }
+        this.save(parsed);
+    },
+
+    isCustom() {
+        return !!localStorage.getItem(CUSTOM_GAME_STORAGE_KEY);
+    }
+};
 
 function getRoundData(roundId) {
     return gameRounds.find(r => r.id === roundId) || gameRounds[0];
