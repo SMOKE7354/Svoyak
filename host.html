@@ -11,154 +11,99 @@
 <body class="host-body">
     <header class="host-header">
         <div class="host-header-left">
-            <h2>Своя Игра <span class="badge">Ведущий</span></h2>
-            <div id="host-round-indicator" class="host-round-indicator">Лобби</div>
-            <button id="host-to-board-btn" class="btn secondary host-to-board-btn hidden" type="button">← К табло</button>
+            <h2>Своя Игра</h2>
+            <span id="host-round-indicator" class="host-round-indicator">Лобби</span>
+            <span id="host-progress" class="host-progress hidden">0/0</span>
         </div>
         <div class="host-header-right">
-            <div id="host-room-box" class="host-room-box">
-                <span class="room-label">Код игры:</span>
-                <span id="host-room-code" class="host-room-code">SVOYAK</span>
-            </div>
-            <div id="host-sync-hint" class="host-sync-hint"></div>
-            <div id="host-progress" class="host-progress hidden"></div>
-            <div id="host-status" class="host-status disconnected">Табло не подключено</div>
+            <span id="host-status" class="host-status disconnected">Табло offline</span>
+            <button id="host-to-board-btn" class="btn secondary host-to-board-btn hidden" type="button">← Табло</button>
         </div>
     </header>
 
-    <div id="firebase-setup-banner" class="firebase-setup-banner hidden">
-        <strong>⚠ Два ноутбука:</strong> нужна настройка Firebase (5 мин, один раз).
-        Откройте файл <code>js/firebase-config.js</code> в проекте — там пошаговая инструкция.
-        Пока Firebase не настроен, игра работает только на <strong>одном компьютере</strong> (две вкладки).
-    </div>
+    <div id="firebase-setup-banner" class="firebase-setup-banner hidden"></div>
 
     <!-- Lobby -->
     <div id="host-lobby-screen" class="host-fullscreen active">
         <div class="host-lobby-panel glass-panel">
             <h1 class="glow-text">Панель ведущего</h1>
-            <p class="subtitle">Добавьте игроков и запустите раунды. На втором экране откройте <code>index.html</code> и нажмите «Подключиться» (код всегда <strong>SVOYAK</strong>).</p>
+            <p class="subtitle">Добавьте игроков → запустите раунд. На TV: <code>index.html</code>, код <strong>SVOYAK</strong></p>
 
             <div class="lobby-setup-row">
                 <input type="text" id="player-input" placeholder="Имя игрока" autocomplete="off">
-                <button id="add-player-btn" class="btn primary">Добавить</button>
+                <button id="add-player-btn" class="btn primary">+</button>
             </div>
             <ul id="players-list" class="host-players-list"></ul>
 
             <div class="round-launch-panel">
-                <h3>Запуск раундов</h3>
                 <div class="round-buttons">
                     <button id="start-round-1" class="btn round-btn" data-round="1" disabled>
-                        <span class="round-btn-num">1</span>
-                        <span class="round-btn-label">Раунд 1<br><small>100–500</small></span>
+                        <span class="round-btn-num">1</span><span>100–500</span>
                     </button>
                     <button id="start-round-2" class="btn round-btn" data-round="2" disabled>
-                        <span class="round-btn-num">2</span>
-                        <span class="round-btn-label">Раунд 2<br><small>200–1000</small></span>
+                        <span class="round-btn-num">2</span><span>200–1000</span>
                     </button>
                     <button id="start-round-3" class="btn round-btn" data-round="3" disabled>
-                        <span class="round-btn-num">3</span>
-                        <span class="round-btn-label">Раунд 3<br><small>500–2500</small></span>
+                        <span class="round-btn-num">3</span><span>500–2500</span>
                     </button>
                 </div>
-                <p id="round-hint" class="round-hint">Добавьте хотя бы одного игрока</p>
+                <p id="round-hint" class="round-hint">Добавьте игроков</p>
             </div>
         </div>
     </div>
 
-    <!-- Game control -->
+    <!-- Game -->
     <div id="host-game-screen" class="host-fullscreen hidden">
         <div class="host-layout">
-            <aside class="host-sidebar host-sidebar-left">
-                <div class="sidebar-section">
-                    <h3>Игроки</h3>
-                    <div id="sidebar-players-list" class="sidebar-players"></div>
+            <aside class="host-sidebar">
+                <div id="sidebar-players-list" class="sidebar-players"></div>
+                <div class="host-toolbar-mini">
+                    <button class="btn-sm success" onclick="triggerEffect('correct')" title="Верно">✓</button>
+                    <button class="btn-sm danger" onclick="triggerEffect('wrong')" title="Мимо">✗</button>
+                    <button class="btn-sm primary" onclick="triggerEffect('applause')" title="Браво">👏</button>
                 </div>
-
-                <div class="sidebar-section effects-panel">
-                    <h4 class="label">Эффекты на экране</h4>
-                    <div class="effects-grid">
-                        <button class="btn success" onclick="triggerEffect('correct')">✓ Верно</button>
-                        <button class="btn danger" onclick="triggerEffect('wrong')">✗ Мимо</button>
-                        <button class="btn primary" onclick="triggerEffect('applause')">👏 Браво</button>
-                    </div>
-                </div>
-
-                <div class="sidebar-section manual-score-adjust">
-                    <h4 class="label">Ручные баллы</h4>
-                    <select id="manual-player-select" class="full-width mb-10"></select>
-                    <input type="number" id="manual-score-input" class="full-width mb-10" value="100">
-                    <div class="btn-row">
-                        <button class="btn danger full-width" id="manual-minus-btn">−</button>
-                        <button class="btn success full-width" id="manual-plus-btn">+</button>
-                    </div>
-                </div>
-
-                <div class="sidebar-section sidebar-actions">
-                    <button id="host-sidebar-board-btn" class="btn primary full-width mb-10 hidden" type="button">← Вернуться к табло</button>
-                    <button id="end-round-btn" class="btn secondary full-width mb-10">Завершить раунд</button>
+                <div class="sidebar-footer">
+                    <button id="end-round-btn" class="btn secondary full-width">Завершить раунд</button>
                     <button id="reset-game-btn" class="btn danger-outline full-width">Новая игра</button>
                 </div>
             </aside>
 
             <main class="host-main">
-                <!-- Board -->
                 <div id="host-board-screen" class="host-screen active">
-                    <div class="host-board-top">
-                        <h3 id="host-board-title">Табло</h3>
-                        <span id="host-board-progress" class="host-board-progress"></span>
-                    </div>
                     <div id="host-grid" class="grid host-grid"></div>
                 </div>
 
-                <!-- Question -->
                 <div id="host-question-screen" class="host-screen hidden">
-                    <div class="q-header">
+                    <div class="q-top-bar">
                         <div>
-                            <h3 id="host-q-category">Категория</h3>
-                            <div class="q-price glow-text gold" id="host-q-price">100</div>
+                            <span id="host-q-category" class="q-cat">Категория</span>
+                            <span id="host-q-price" class="q-price-tag">100</span>
                         </div>
                         <div id="host-timer-badge" class="host-timer-badge hidden">⏱ <span id="host-timer-val">30</span></div>
                     </div>
 
-                    <div class="q-card">
-                        <div class="label">Вопрос</div>
-                        <p id="host-q-text">…</p>
-                    </div>
-
-                    <div class="a-card">
-                        <div class="label">Ответ (только для вас)</div>
-                        <p id="host-q-answer">…</p>
-                    </div>
-
-                    <div class="host-controls-compact">
-                        <div class="control-group">
-                            <h4 class="label">Таймер</h4>
-                            <div class="timer-row">
-                                <select id="timer-val">
-                                    <option value="10">10 сек</option>
-                                    <option value="15">15 сек</option>
-                                    <option value="30" selected>30 сек</option>
-                                    <option value="45">45 сек</option>
-                                    <option value="60">60 сек</option>
-                                </select>
-                                <button class="btn primary" id="start-timer-btn">▶ Старт</button>
-                                <button class="btn secondary" id="stop-timer-btn">↺ Сброс</button>
-                            </div>
+                    <div class="q-body">
+                        <div class="q-card compact">
+                            <p id="host-q-text">…</p>
                         </div>
-
-                        <div class="control-group">
-                            <h4 class="label">Действия</h4>
-                            <div class="action-buttons">
-                                <button class="btn success" id="show-answer-btn">Показать ответ</button>
-                                <button class="btn neutral" id="nobody-answered-btn">Никто не ответил</button>
-                                <button class="btn primary" id="close-question-btn">← К табло</button>
-                            </div>
+                        <div class="a-card compact">
+                            <p id="host-q-answer">…</p>
                         </div>
                     </div>
 
-                    <div id="quick-score-panel" class="quick-score-panel hidden">
-                        <h4 class="label">Быстрое начисление</h4>
-                        <div id="quick-score-buttons" class="quick-score-buttons"></div>
+                    <div id="quick-score-panel" class="quick-score-panel"></div>
+
+                    <div class="host-action-bar">
+                        <select id="timer-val" class="timer-select">
+                            <option value="15">15с</option>
+                            <option value="30" selected>30с</option>
+                            <option value="45">45с</option>
+                            <option value="60">60с</option>
+                        </select>
+                        <button class="btn primary" id="start-timer-btn">▶</button>
+                        <button class="btn success" id="show-answer-btn">Ответ</button>
+                        <button class="btn neutral" id="nobody-answered-btn">Никто</button>
+                        <button class="btn secondary" id="close-question-btn">Табло</button>
                     </div>
                 </div>
             </main>
@@ -167,9 +112,9 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-    <script src="js/firebase-config.js?v=4"></script>
-    <script src="js/data.js?v=4"></script>
-    <script src="js/sync.js?v=4"></script>
-    <script src="js/host.js?v=4"></script>
+    <script src="js/firebase-config.js?v=5"></script>
+    <script src="js/data.js?v=5"></script>
+    <script src="js/sync.js?v=5"></script>
+    <script src="js/host.js?v=5"></script>
 </body>
 </html>
