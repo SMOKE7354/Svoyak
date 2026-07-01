@@ -1,5 +1,7 @@
 let state = createInitialState();
 let timerInterval = null;
+let lastBoardKey = '';
+let lastScreen = null;
 
 const hostLobbyScreen = document.getElementById('host-lobby-screen');
 const hostGameScreen = document.getElementById('host-game-screen');
@@ -8,13 +10,13 @@ const hostQuestionScreen = document.getElementById('host-question-screen');
 const hostGrid = document.getElementById('host-grid');
 const hostRoundIndicator = document.getElementById('host-round-indicator');
 const hostProgress = document.getElementById('host-progress');
-const hostBoardTitle = document.getElementById('host-board-title');
-const hostBoardProgress = document.getElementById('host-board-progress');
 const sidebarPlayersList = document.getElementById('sidebar-players-list');
 const quickScorePanel = document.getElementById('quick-score-panel');
-const quickScoreButtons = document.getElementById('quick-score-buttons');
 const hostTimerBadge = document.getElementById('host-timer-badge');
 const hostTimerVal = document.getElementById('host-timer-val');
+const hostToBoardBtn = document.getElementById('host-to-board-btn');
+const hostStatus = document.getElementById('host-status');
+const firebaseBanner = document.getElementById('firebase-setup-banner');
 
 const playerInput = document.getElementById('player-input');
 const addPlayerBtn = document.getElementById('add-player-btn');
@@ -26,96 +28,76 @@ const hostQPrice = document.getElementById('host-q-price');
 const hostQText = document.getElementById('host-q-text');
 const hostQAnswer = document.getElementById('host-q-answer');
 
-const manualPlayerSelect = document.getElementById('manual-player-select');
-const manualScoreInput = document.getElementById('manual-score-input');
-const hostStatus = document.getElementById('host-status');
-const hostRoomCode = document.getElementById('host-room-code');
-const hostSyncHint = document.getElementById('host-sync-hint');
-const firebaseBanner = document.getElementById('firebase-setup-banner');
-const hostToBoardBtn = document.getElementById('host-to-board-btn');
-const hostSidebarBoardBtn = document.getElementById('host-sidebar-board-btn');
-
 function init() {
     state = gameSync.load();
     setupEventListeners();
 
-    if (hostRoomCode) hostRoomCode.textContent = gameSync.getRoomCode();
-
     if (gameSync.needsFirebaseSetup() && firebaseBanner) {
         firebaseBanner.classList.remove('hidden');
+        firebaseBanner.textContent = 'Настройте Firebase в js/firebase-config.js для двух ноутбуков';
     }
 
     gameSync.initHost({
         onReady: (_code, mode) => {
             updateHostConnectionStatus(false);
-            if (hostSyncHint) {
-                hostSyncHint.textContent = gameSync.getSyncHint(mode);
-            }
-            if (firebaseBanner && mode === 'cloud') {
-                firebaseBanner.classList.add('hidden');
-            }
+            if (firebaseBanner && mode === 'cloud') firebaseBanner.classList.add('hidden');
         },
         onDisplayConnected: () => updateHostConnectionStatus(true),
         onDisplayDisconnected: () => updateHostConnectionStatus(false)
     }).catch((err) => {
-        if (hostSyncHint) {
-            hostSyncHint.textContent = err.message || 'Ошибка Firebase';
-        }
         if (firebaseBanner) {
             firebaseBanner.classList.remove('hidden');
-            firebaseBanner.innerHTML = `<strong>Ошибка Firebase:</strong> ${err.message || 'проверьте Rules'}`;
+            firebaseBanner.textContent = `Firebase: ${err.message}`;
         }
     });
 
     renderAll();
 }
 
-function updateHostConnectionStatus(isConnected) {
+function updateHostConnectionStatus(ok) {
     if (!hostStatus) return;
-    hostStatus.textContent = isConnected ? 'Табло подключено' : 'Табло не подключено';
-    hostStatus.className = `host-status ${isConnected ? 'connected' : 'disconnected'}`;
+    hostStatus.textContent = ok ? 'TV online' : 'TV offline';
+    hostStatus.className = `host-status ${ok ? 'connected' : 'disconnected'}`;
 }
 
-function saveState() {
+function saveState(full = true) {
     gameSync.save(state);
-    renderAll();
+    if (full) renderAll();
+    else refreshScores();
+}
+
+function refreshScores() {
+    renderSidebar();
+    if (state.screen === 'question') renderQuickScore();
 }
 
 function setupEventListeners() {
     addPlayerBtn.addEventListener('click', addPlayer);
-    playerInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addPlayer();
-    });
+    playerInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPlayer(); });
 
     document.querySelectorAll('.round-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const roundId = parseInt(btn.dataset.round);
-            startRound(roundId);
-        });
+        btn.addEventListener('click', () => startRound(parseInt(btn.dataset.round)));
     });
 
     document.getElementById('reset-game-btn').addEventListener('click', resetGame);
     document.getElementById('end-round-btn').addEventListener('click', endRound);
     document.getElementById('close-question-btn').addEventListener('click', goToBoard);
     hostToBoardBtn?.addEventListener('click', goToBoard);
-    hostSidebarBoardBtn?.addEventListener('click', goToBoard);
     document.getElementById('nobody-answered-btn').addEventListener('click', nobodyAnswered);
     document.getElementById('show-answer-btn').addEventListener('click', () => {
         state.showAnswer = true;
         stopTimer();
-        saveState();
+        saveState(false);
+        gameSync.save(state);
     });
     document.getElementById('start-timer-btn').addEventListener('click', startTimer);
-    document.getElementById('stop-timer-btn').addEventListener('click', stopTimer);
-    document.getElementById('manual-plus-btn').addEventListener('click', () => adjustManualScore(1));
-    document.getElementById('manual-minus-btn').addEventListener('click', () => adjustManualScore(-1));
+    document.getElementById('stop-timer-btn')?.addEventListener('click', stopTimer);
 
     document.addEventListener('keydown', (e) => {
         if (state.screen !== 'question' || !state.currentQuestion) return;
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-
         if (e.code === 'Space') { e.preventDefault(); startTimer(); }
-        if (e.code === 'KeyA') { state.showAnswer = true; stopTimer(); saveState(); }
+        if (e.code === 'KeyA') { state.showAnswer = true; stopTimer(); gameSync.save(state); }
         if (e.code === 'Escape') goToBoard();
         if (e.code === 'KeyN') nobodyAnswered();
     });
@@ -136,30 +118,26 @@ function removePlayer(id) {
 
 function startRound(roundId) {
     if (state.players.length === 0) return;
-
     if (roundId > 1 && state.currentRound < roundId - 1) {
         alert(`Сначала завершите раунд ${roundId - 1}`);
         return;
     }
-
     state.currentRound = roundId;
     state.screen = 'board';
     state.currentQuestion = null;
     state.showAnswer = false;
     state.roundAnnouncement = Date.now();
     if (!Array.isArray(state.playedQuestions)) state.playedQuestions = [];
+    lastBoardKey = '';
     stopTimer();
     saveState();
 }
 
 function endRound() {
-    const round = getRoundData(state.currentRound);
     const progress = getRoundProgress(state.currentRound, state.playedQuestions);
-
     if (progress.played < progress.total) {
-        if (!confirm(`Сыграно ${progress.played} из ${progress.total} вопросов. Завершить раунд досрочно?`)) return;
+        if (!confirm(`Сыграно ${progress.played}/${progress.total}. Завершить?`)) return;
     }
-
     if (state.currentRound >= 3) {
         state.screen = 'finale';
         state.currentQuestion = null;
@@ -167,29 +145,23 @@ function endRound() {
         saveState();
         return;
     }
-
     state.screen = 'lobby';
     state.currentQuestion = null;
+    lastBoardKey = '';
     stopTimer();
     saveState();
 }
 
 function resetGame() {
-    if (!confirm('Начать новую игру? Все очки и прогресс будут сброшены.')) return;
+    if (!confirm('Новая игра?')) return;
     stopTimer();
+    lastBoardKey = '';
     state = gameSync.reset();
     renderAll();
 }
 
 function openQuestion(categoryName, q) {
-    state.currentQuestion = {
-        categoryName,
-        id: q.id,
-        price: q.price,
-        text: q.text,
-        answer: q.answer,
-        image: q.image
-    };
+    state.currentQuestion = { categoryName, id: q.id, price: q.price, text: q.text, answer: q.answer, image: q.image };
     state.screen = 'question';
     state.showAnswer = false;
     stopTimer();
@@ -201,6 +173,7 @@ function goToBoard() {
         if (!state.playedQuestions.includes(state.currentQuestion.id)) {
             state.playedQuestions.push(state.currentQuestion.id);
         }
+        lastBoardKey = '';
     }
     state.currentQuestion = null;
     state.screen = 'board';
@@ -209,14 +182,10 @@ function goToBoard() {
     saveState();
 }
 
-function closeQuestion() {
-    goToBoard();
-}
-
 function nobodyAnswered() {
     if (!state.currentQuestion) return;
     triggerEffect('wrong');
-    setTimeout(closeQuestion, 800);
+    setTimeout(goToBoard, 600);
 }
 
 function startTimer() {
@@ -250,20 +219,12 @@ function stopTimer() {
 }
 
 function updateTimerUI() {
-    if (state.timerValue !== null && state.timerValue !== undefined) {
+    if (state.timerValue != null) {
         hostTimerBadge.classList.remove('hidden');
         hostTimerVal.textContent = state.timerValue;
         hostTimerBadge.classList.toggle('urgent', state.timerValue <= 5);
     } else {
         hostTimerBadge.classList.add('hidden');
-    }
-}
-
-function adjustManualScore(multiplier) {
-    const playerId = manualPlayerSelect.value;
-    const scoreVal = parseInt(manualScoreInput.value);
-    if (playerId && !isNaN(scoreVal)) {
-        changeScore(playerId, scoreVal * multiplier);
     }
 }
 
@@ -273,14 +234,14 @@ function changeScore(playerId, amount) {
     player.score += amount;
     if (amount > 0) triggerEffect('correct');
     else if (amount < 0) triggerEffect('wrong');
-    saveState();
+    else gameSync.save(state);
+    refreshScores();
 }
 
 function triggerEffect(effectName) {
     state.effect = effectName;
     state.effectTimestamp = Date.now();
     gameSync.save(state);
-    renderSidebar();
 }
 
 function renderAll() {
@@ -296,85 +257,62 @@ function renderAll() {
 }
 
 function renderLobby() {
-    playersList.innerHTML = '';
-    state.players.forEach(p => {
-        const li = document.createElement('li');
-        li.innerHTML = `<span>${p.name}</span><button type="button" onclick="removePlayer('${p.id}')">✕</button>`;
-        playersList.appendChild(li);
-    });
+    playersList.innerHTML = state.players.map(p =>
+        `<li><span>${p.name}</span><button type="button" onclick="removePlayer('${p.id}')">✕</button></li>`
+    ).join('');
 
-    const hasPlayers = state.players.length > 0;
-    const betweenRounds = state.screen === 'lobby' || state.screen === 'finale';
+    const has = state.players.length > 0;
+    const between = state.screen === 'lobby' || state.screen === 'finale';
     document.querySelectorAll('.round-btn').forEach(btn => {
-        const roundId = parseInt(btn.dataset.round);
-        btn.disabled = !hasPlayers
-            || (roundId > 1 && state.currentRound < roundId - 1)
-            || (betweenRounds && roundId <= state.currentRound && state.currentRound > 0);
-        btn.classList.toggle('completed', state.currentRound > roundId);
-        btn.classList.toggle('current', state.currentRound === roundId && inGameScreen());
+        const id = parseInt(btn.dataset.round);
+        btn.disabled = !has || (id > 1 && state.currentRound < id - 1) || (between && id <= state.currentRound && state.currentRound > 0);
+        btn.classList.toggle('completed', state.currentRound > id);
     });
 
-    if (!hasPlayers) {
-        roundHint.textContent = 'Добавьте хотя бы одного игрока';
-    } else if (state.screen === 'finale') {
-        roundHint.textContent = 'Игра окончена! Результаты на большом экране. Нажмите «Новая игра» для рестарта.';
-    } else if (state.currentRound === 0) {
-        roundHint.textContent = 'Нажмите «Раунд 1» для начала игры';
-    } else if (state.currentRound < 3) {
-        roundHint.textContent = `Раунд ${state.currentRound} завершён — можно запустить раунд ${state.currentRound + 1}`;
-    } else {
-        roundHint.textContent = 'Завершите раунд 3 — на экране появится финальная таблица';
-    }
-}
-
-function inGameScreen() {
-    return state.screen === 'board' || state.screen === 'question';
+    if (!has) roundHint.textContent = 'Добавьте игроков';
+    else if (state.screen === 'finale') roundHint.textContent = 'Игра окончена!';
+    else if (!state.currentRound) roundHint.textContent = 'Запустите раунд 1';
+    else if (state.currentRound < 3) roundHint.textContent = `Раунд ${state.currentRound} done → раунд ${state.currentRound + 1}`;
+    else roundHint.textContent = 'Завершите раунд 3';
 }
 
 function renderGame() {
     const round = getRoundData(state.currentRound);
-    if (round) {
-        hostRoundIndicator.textContent = round.title;
-        hostBoardTitle.textContent = round.title;
-    }
+    if (round) hostRoundIndicator.textContent = round.title;
 
-    const progress = getRoundProgress(state.currentRound, state.playedQuestions);
-    hostProgress.textContent = `${progress.played}/${progress.total}`;
+    const prog = getRoundProgress(state.currentRound, state.playedQuestions);
+    hostProgress.textContent = `${prog.played}/${prog.total}`;
     hostProgress.classList.remove('hidden');
-    hostBoardProgress.textContent = `Сыграно: ${progress.played} / ${progress.total}`;
 
-    if (state.screen === 'board') {
-        hostBoardScreen.classList.add('active');
-        hostBoardScreen.classList.remove('hidden');
-        hostQuestionScreen.classList.remove('active');
-        hostQuestionScreen.classList.add('hidden');
-        hostToBoardBtn?.classList.add('hidden');
-        hostSidebarBoardBtn?.classList.add('hidden');
-        renderBoard();
-    } else if (state.screen === 'question') {
-        hostBoardScreen.classList.remove('active');
-        hostBoardScreen.classList.add('hidden');
-        hostQuestionScreen.classList.add('active');
-        hostQuestionScreen.classList.remove('hidden');
-        hostToBoardBtn?.classList.remove('hidden');
-        hostSidebarBoardBtn?.classList.remove('hidden');
-        renderQuestion();
-    }
+    const onQuestion = state.screen === 'question';
+    hostBoardScreen.classList.toggle('active', !onQuestion);
+    hostQuestionScreen.classList.toggle('active', onQuestion);
+    hostToBoardBtn?.classList.toggle('hidden', !onQuestion);
+
+    if (!onQuestion) renderBoardIfNeeded();
+    else renderQuestion();
 
     renderSidebar();
+    lastScreen = state.screen;
+}
+
+function renderBoardIfNeeded() {
+    const key = `${state.currentRound}:${state.playedQuestions.join(',')}`;
+    if (key === lastBoardKey && hostGrid.children.length) return;
+    lastBoardKey = key;
+    renderBoard();
 }
 
 function renderBoard() {
-    if (!hostGrid) return;
     const round = getRoundData(state.currentRound);
-    if (!round) return;
-
-    hostGrid.innerHTML = '';
-    const cols = round.categories.length;
-    hostGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    hostGrid.style.gridTemplateRows = `auto repeat(5, minmax(50px, 1fr))`;
+    if (!round || !hostGrid) return;
 
     const played = state.playedQuestions || [];
+    const cols = round.categories.length;
+
+    hostGrid.innerHTML = '';
+    hostGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    hostGrid.style.gridTemplateRows = `auto repeat(5, minmax(44px, 1fr))`;
 
     round.categories.forEach(cat => {
         const cell = document.createElement('div');
@@ -383,14 +321,14 @@ function renderBoard() {
         hostGrid.appendChild(cell);
     });
 
+    let idx = 0;
     for (let i = 0; i < 5; i++) {
         round.categories.forEach(cat => {
             const q = cat.questions[i];
             if (!q) return;
             const cell = document.createElement('div');
             cell.className = 'cell question-cell host-question-cell';
-            const playedCell = played.includes(q.id);
-            if (playedCell) {
+            if (played.includes(q.id)) {
                 cell.classList.add('played');
                 cell.textContent = '—';
             } else {
@@ -398,6 +336,7 @@ function renderBoard() {
                 cell.onclick = () => openQuestion(cat.name, q);
             }
             hostGrid.appendChild(cell);
+            idx++;
         });
     }
 }
@@ -413,46 +352,38 @@ function renderQuestion() {
 }
 
 function renderQuickScore() {
-    if (!state.currentQuestion || state.players.length === 0) {
-        quickScorePanel.classList.add('hidden');
-        return;
-    }
-    quickScorePanel.classList.remove('hidden');
+    if (!state.currentQuestion || !quickScorePanel) return;
     const price = state.currentQuestion.price;
-    quickScoreButtons.innerHTML = state.players.map(p => `
+    quickScorePanel.innerHTML = state.players.map(p => `
         <div class="quick-score-row">
             <span class="qs-name">${p.name}</span>
-            <button class="btn danger qs-btn" onclick="changeScore('${p.id}', -${price})">−${price}</button>
-            <button class="btn success qs-btn" onclick="changeScore('${p.id}', ${price})">+${price}</button>
+            <button class="btn-sm danger" onclick="changeScore('${p.id}', -${price})">−${price}</button>
+            <button class="btn-sm success" onclick="changeScore('${p.id}', ${price})">+${price}</button>
         </div>
     `).join('');
 }
 
 function renderSidebar() {
     if (!sidebarPlayersList) return;
+    const onQ = state.screen === 'question' && state.currentQuestion;
+    const price = onQ ? state.currentQuestion.price : 0;
 
-    const selectedBefore = manualPlayerSelect.value;
-    sidebarPlayersList.innerHTML = '';
-    manualPlayerSelect.innerHTML = '';
-
-    state.players.forEach(p => {
-        const option = document.createElement('option');
-        option.value = p.id;
-        option.textContent = p.name;
-        manualPlayerSelect.appendChild(option);
-
-        const row = document.createElement('div');
-        row.className = 'player-row';
-        row.innerHTML = `
+    sidebarPlayersList.innerHTML = state.players.map(p => {
+        if (onQ) {
+            return `<div class="player-row compact">
+                <span class="p-name">${p.name}</span>
+                <span class="p-score" data-id="${p.id}">${p.score}</span>
+                <div class="p-btns">
+                    <button class="btn-sm danger" onclick="changeScore('${p.id}', -${price})">−</button>
+                    <button class="btn-sm success" onclick="changeScore('${p.id}', ${price})">+</button>
+                </div>
+            </div>`;
+        }
+        return `<div class="player-row compact">
             <span class="p-name">${p.name}</span>
-            <span class="p-score">${p.score}</span>
-        `;
-        sidebarPlayersList.appendChild(row);
-    });
-
-    if (selectedBefore && state.players.find(p => p.id === selectedBefore)) {
-        manualPlayerSelect.value = selectedBefore;
-    }
+            <span class="p-score" data-id="${p.id}">${p.score}</span>
+        </div>`;
+    }).join('');
 }
 
 window.removePlayer = removePlayer;

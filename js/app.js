@@ -32,7 +32,9 @@ const boardRoundBadge = document.getElementById('board-round-badge');
 const roundNumber = document.getElementById('round-number');
 const roundTitle = document.getElementById('round-title');
 const roundSubtitle = document.getElementById('round-subtitle');
+const roundCurtain = document.getElementById('round-curtain');
 const finaleWinners = document.getElementById('finale-winners');
+let showingRoundSplash = false;
 
 function init() {
     setupConnectUI();
@@ -143,6 +145,9 @@ function showRoundAnnouncement() {
     roundTitle.textContent = round.title;
     roundSubtitle.textContent = round.subtitle;
 
+    showingRoundSplash = true;
+    if (roundCurtain) roundCurtain.classList.remove('exit');
+
     Object.values(screens).forEach(s => {
         if (s) { s.classList.remove('active'); s.classList.add('hidden'); }
     });
@@ -151,8 +156,12 @@ function showRoundAnnouncement() {
 
     clearTimeout(roundAnnouncementTimer);
     roundAnnouncementTimer = setTimeout(() => {
-        if (state.screen === 'board') renderScreen();
-    }, 3500);
+        if (roundCurtain) roundCurtain.classList.add('exit');
+        setTimeout(() => {
+            showingRoundSplash = false;
+            if (state.screen === 'board') renderScreen();
+        }, 850);
+    }, 2200);
 }
 
 function playEffect(effectName) {
@@ -164,9 +173,7 @@ function playEffect(effectName) {
 }
 
 function renderScreen() {
-    if (state.roundAnnouncement && Date.now() - state.roundAnnouncement < 3500) {
-        return;
-    }
+    if (showingRoundSplash) return;
 
     if (state.screen === 'board' || state.screen === 'question') {
         if (!state.currentRound || !getRoundData(state.currentRound)) {
@@ -182,6 +189,8 @@ function renderScreen() {
     if (screen) {
         screen.classList.remove('hidden');
         screen.classList.add('active');
+        screen.classList.add('screen-enter');
+        setTimeout(() => screen.classList.remove('screen-enter'), 500);
     }
 
     switch (state.screen) {
@@ -238,11 +247,14 @@ function renderBoard() {
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     grid.style.gridTemplateRows = `auto repeat(5, minmax(70px, 1fr))`;
 
+    let cellIndex = 0;
     round.categories.forEach(cat => {
         const cell = document.createElement('div');
-        cell.className = 'cell category-name';
+        cell.className = 'cell category-name cell-pop';
+        cell.style.animationDelay = `${cellIndex * 0.04}s`;
         cell.textContent = cat.name;
         grid.appendChild(cell);
+        cellIndex++;
     });
 
     for (let i = 0; i < 5; i++) {
@@ -250,7 +262,9 @@ function renderBoard() {
             const q = cat.questions[i];
             if (!q) return;
             const cell = document.createElement('div');
-            cell.className = 'cell question-cell';
+            cell.className = 'cell question-cell cell-pop';
+            cell.style.animationDelay = `${cellIndex * 0.04}s`;
+            cellIndex++;
             if (played.includes(q.id)) {
                 cell.classList.add('played');
                 cell.textContent = '';
@@ -266,13 +280,11 @@ function renderScores() {
     const renderTo = (container) => {
         if (!container) return;
         container.innerHTML = '';
-        state.players.forEach(p => {
+        state.players.forEach((p, i) => {
             const card = document.createElement('div');
-            card.className = 'player-score-card';
-            card.innerHTML = `
-                <div class="p-name">${p.name}</div>
-                <div class="p-score">${p.score}</div>
-            `;
+            card.className = 'player-score-card cell-pop';
+            card.style.animationDelay = `${i * 0.08}s`;
+            card.innerHTML = `<div class="p-name">${p.name}</div><div class="p-score">${p.score}</div>`;
             container.appendChild(card);
         });
     };
