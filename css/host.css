@@ -445,6 +445,67 @@
     text-align: center;
 }
 
+.host-editor-link {
+    display: block;
+    margin-top: 1rem;
+    padding: 0.65rem 1rem;
+    text-align: center;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--h-gold);
+    border: 1px dashed rgba(255, 215, 0, 0.35);
+    border-radius: var(--h-radius-sm);
+    transition: background 0.15s;
+}
+.host-editor-link:hover {
+    background: var(--h-gold-dim);
+}
+
+.custom-points-row {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.host-input-num {
+    width: 72px;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--h-border);
+    border-radius: var(--h-radius-sm);
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.custom-award-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.custom-award-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.custom-award-row .ca-name {
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.host-btn-xs {
+    padding: 0.25rem 0.45rem !important;
+    font-size: 0.7rem !important;
+    min-width: auto !important;
+}
+
 /* ─── Игра ─── */
 .host-game-layout {
     display: grid;
