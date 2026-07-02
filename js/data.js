@@ -277,3 +277,16 @@ function getRoundProgress(roundId, playedQuestions) {
     const played = all.filter(q => playedQuestions.includes(q.id)).length;
     return { played, total: all.length };
 }
+
+function getRoundCount() {
+    return gameRounds.length;
+}
+
+function getLastRoundId() {
+    if (!gameRounds.length) return 0;
+    return gameRounds[gameRounds.length - 1].id;
+}
+
+function isLastRound(roundId) {
+    return roundId >= getLastRoundId();
+}

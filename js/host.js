@@ -19,6 +19,9 @@ const awardPanel = document.getElementById('award-panel');
 const hostTimerBadge = document.getElementById('host-timer-badge');
 const hostTimerVal = document.getElementById('host-timer-val');
 const hostToBoardBtn = document.getElementById('host-to-board-btn');
+const hostToLobbyBtn = document.getElementById('host-to-lobby-btn');
+const hostFinaleBanner = document.getElementById('host-finale-banner');
+const roundCardsContainer = document.getElementById('round-cards');
 const hostStatus = document.getElementById('host-status');
 const firebaseBanner = document.getElementById('firebase-setup-banner');
 
@@ -79,12 +82,16 @@ function setupEventListeners() {
     addPlayerBtn.addEventListener('click', addPlayer);
     playerInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPlayer(); });
 
-    document.querySelectorAll('.round-btn').forEach(btn => {
-        btn.addEventListener('click', () => startRound(parseInt(btn.dataset.round, 10)));
+    roundCardsContainer?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.round-btn');
+        if (btn && !btn.disabled) startRound(parseInt(btn.dataset.round, 10));
     });
 
     document.getElementById('reset-game-btn').addEventListener('click', resetGame);
     document.getElementById('end-round-btn').addEventListener('click', endRound);
+    hostToLobbyBtn?.addEventListener('click', goToLobby);
+    document.getElementById('finale-to-lobby-btn')?.addEventListener('click', goToLobby);
+    document.getElementById('finale-new-game-btn')?.addEventListener('click', resetGame);
     document.getElementById('close-question-btn').addEventListener('click', goToBoard);
     hostToBoardBtn?.addEventListener('click', goToBoard);
     document.getElementById('nobody-answered-btn').addEventListener('click', nobodyAnswered);
@@ -171,7 +178,7 @@ function endRound() {
     if (progress.played < progress.total) {
         if (!confirm(`Сыграно ${progress.played} из ${progress.total}. Завершить раунд?`)) return;
     }
-    if (state.currentRound >= 3) {
+    if (isLastRound(state.currentRound)) {
         state.screen = 'finale';
         state.currentQuestion = null;
         stopTimer(true);
@@ -180,6 +187,16 @@ function endRound() {
     }
     state.screen = 'lobby';
     state.currentQuestion = null;
+    lastBoardKey = '';
+    awardPanelBuilt = false;
+    stopTimer(true);
+    saveState();
+}
+
+function goToLobby() {
+    state.screen = 'lobby';
+    state.currentQuestion = null;
+    state.showAnswer = false;
     lastBoardKey = '';
     awardPanelBuilt = false;
     stopTimer(true);
@@ -332,29 +349,54 @@ function renderAll() {
 
 function renderLobby() {
     hostRoundIndicator.textContent = state.screen === 'finale' ? 'Финал' : 'Лобби';
+    hostToLobbyBtn?.classList.toggle('hidden', state.screen !== 'finale');
+    hostFinaleBanner?.classList.toggle('hidden', state.screen !== 'finale');
+    roundCardsContainer?.classList.toggle('hidden', state.screen === 'finale');
 
     playersList.innerHTML = state.players.length
         ? state.players.map(p =>
-            `<li><span>${escapeHtml(p.name)}</span><button type="button" onclick="removePlayer('${p.id}')" aria-label="Удалить">×</button></li>`
+            `<li><span>${escapeHtml(p.name)}</span><span class="player-chip-score">${p.score}</span><button type="button" onclick="removePlayer('${p.id}')" aria-label="Удалить">×</button></li>`
         ).join('')
         : '<li class="empty-chip">Пока никого нет</li>';
+
+    renderRoundCards();
+
+    const has = state.players.length > 0;
+    const lastId = getLastRoundId();
+
+    if (!has) roundHint.textContent = 'Добавьте хотя бы одного игрока';
+    else if (state.screen === 'finale') roundHint.textContent = 'Нажмите «Вернуться в лобби» — табло покажет перерыв. Или начните новую игру.';
+    else if (!state.currentRound) roundHint.textContent = 'Все готово — запускайте раунд 1';
+    else if (state.currentRound < lastId) roundHint.textContent = `Раунд ${state.currentRound} завершён — можно начать раунд ${state.currentRound + 1}`;
+    else roundHint.textContent = `После раунда ${lastId} нажмите «Завершить раунд» в игре`;
+}
+
+function renderRoundCards() {
+    if (!roundCardsContainer) return;
 
     const has = state.players.length > 0;
     const between = state.screen === 'lobby' || state.screen === 'finale';
 
-    document.querySelectorAll('.round-btn').forEach(btn => {
-        const id = parseInt(btn.dataset.round, 10);
-        const locked = id > 1 && state.currentRound < id - 1;
-        const done = between && id <= state.currentRound && state.currentRound > 0;
-        btn.disabled = !has || locked || done;
-        btn.classList.toggle('completed', state.currentRound > id);
-    });
+    roundCardsContainer.innerHTML = gameRounds.map(r => {
+        const prices = r.prices || r.categories[0]?.questions?.map(q => q.price) || [100];
+        const minP = Math.min(...prices);
+        const maxP = Math.max(...prices);
+        const locked = r.id > 1 && state.currentRound < r.id - 1;
+        const done = between && r.id <= state.currentRound && state.currentRound > 0;
+        const disabled = !has || locked || done || state.screen === 'finale';
+        const completed = state.currentRound > r.id;
+        const subtitle = r.subtitle ? r.subtitle.split('—').pop()?.trim() || `${minP} – ${maxP}` : `${minP} – ${maxP}`;
 
-    if (!has) roundHint.textContent = 'Добавьте хотя бы одного игрока';
-    else if (state.screen === 'finale') roundHint.textContent = '🎉 Игра завершена! Можно начать новую.';
-    else if (!state.currentRound) roundHint.textContent = 'Все готово — запускайте раунд 1';
-    else if (state.currentRound < 3) roundHint.textContent = `Раунд ${state.currentRound} завершён — можно начать раунд ${state.currentRound + 1}`;
-    else roundHint.textContent = 'После раунда 3 нажмите «Завершить раунд» в игре';
+        return `
+            <button type="button" class="round-card round-btn ${completed ? 'completed' : ''}" data-round="${r.id}" ${disabled ? 'disabled' : ''}>
+                <span class="round-card-num">${r.id}</span>
+                <span class="round-card-info">
+                    <strong>${escapeHtml(r.title || `Раунд ${r.id}`)}</strong>
+                    <small>${escapeHtml(subtitle)}</small>
+                </span>
+            </button>
+        `;
+    }).join('');
 }
 
 function renderGame() {

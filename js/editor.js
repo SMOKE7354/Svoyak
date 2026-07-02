@@ -12,6 +12,7 @@ const categoryEditor = document.getElementById('category-editor');
 const catNameInput = document.getElementById('cat-name-input');
 const roundTitleInput = document.getElementById('round-title-input');
 const roundSubtitleInput = document.getElementById('round-subtitle-input');
+const roundSettingsNum = document.getElementById('round-settings-num');
 const questionsList = document.getElementById('questions-list');
 const editorStatus = document.getElementById('editor-status');
 const toast = document.getElementById('toast');
@@ -66,6 +67,8 @@ function bindGlobalActions() {
     document.getElementById('import-file').addEventListener('change', importJson);
     document.getElementById('btn-add-category').addEventListener('click', addCategory);
     document.getElementById('btn-delete-category').addEventListener('click', deleteCategory);
+    document.getElementById('btn-add-round').addEventListener('click', addRound);
+    document.getElementById('btn-delete-round').addEventListener('click', deleteRound);
 
     catNameInput.addEventListener('input', () => {
         const cat = getActiveCategory();
@@ -164,6 +167,9 @@ function importJson(e) {
 function validateRounds(data) {
     if (!Array.isArray(data) || !data.length) throw new Error('Нужен массив раундов');
     data.forEach((r, i) => {
+        if (!r.id) r.id = i + 1;
+        if (!r.title) r.title = `Раунд ${r.id}`;
+        if (!r.subtitle) r.subtitle = '';
         if (!r.categories?.length) throw new Error(`Раунд ${i + 1}: нужна хотя бы одна категория`);
         r.categories.forEach((cat, ci) => {
             if (!cat.name?.trim()) throw new Error(`Раунд ${r.id}, кат. ${ci + 1}: укажите название`);
@@ -178,7 +184,87 @@ function validateRounds(data) {
     });
 }
 
+function syncRoundMetaInputs() {
+    const round = getActiveRound();
+    if (!round) return;
+    if (roundTitleInput) roundTitleInput.value = round.title || '';
+    if (roundSubtitleInput) roundSubtitleInput.value = round.subtitle || '';
+    if (roundSettingsNum) roundSettingsNum.textContent = round.id;
+}
+
+function renumberRounds() {
+    rounds.forEach((r, i) => {
+        r.id = i + 1;
+    });
+}
+
+function defaultPricesForRound(index) {
+    const presets = [
+        [100, 200, 300, 400, 500],
+        [200, 400, 600, 800, 1000],
+        [500, 1000, 1500, 2000, 2500]
+    ];
+    return presets[index] || presets[0].map(p => p * (index + 1));
+}
+
+function addRound() {
+    syncFormToData();
+    if (rounds.length >= 10) {
+        showToast('Максимум 10 раундов', true);
+        return;
+    }
+    const newIndex = rounds.length;
+    const prices = defaultPricesForRound(newIndex);
+    const newId = newIndex + 1;
+    rounds.push({
+        id: newId,
+        title: `Раунд ${newId}`,
+        subtitle: `Вопросы за ${prices[0]}–${prices[prices.length - 1]}`,
+        prices,
+        categories: [{
+            name: 'Категория 1',
+            questions: prices.map((price, i) => ({
+                id: `custom_r${newId}_c0_q${i}_${price}`,
+                price,
+                text: '',
+                answer: ''
+            }))
+        }]
+    });
+    activeCategoryIndex = -1;
+    markDirty();
+    selectRound(newId);
+    showToast('Раунд добавлен');
+}
+
+function deleteRound() {
+    if (rounds.length <= 1) {
+        showToast('Нужен хотя бы один раунд', true);
+        return;
+    }
+    const round = getActiveRound();
+    if (!round) return;
+    if (!confirm(`Удалить «${round.title}» и все его категории?`)) return;
+
+    syncFormToData();
+    rounds = rounds.filter(r => r.id !== activeRoundId);
+    renumberRounds();
+    activeCategoryIndex = -1;
+    activeRoundId = rounds[0]?.id || 1;
+    markDirty();
+    renderRoundTabs();
+    renderCategoryList();
+    selectRound(activeRoundId);
+    showToast('Раунд удалён');
+}
+
 function syncFormToData() {
+    const round = getActiveRound();
+    if (round) {
+        round.title = roundTitleInput?.value?.trim() || round.title;
+        round.subtitle = roundSubtitleInput?.value?.trim() || round.subtitle;
+    }
+
     const cat = getActiveCategory();
     if (!cat) return;
     cat.name = catNameInput.value.trim() || cat.name;
@@ -215,12 +301,7 @@ function selectRound(id) {
     renderRoundTabs();
     renderCategoryList();
     showEditorEmpty();
-
-    const round = getActiveRound();
-    if (round) {
-        roundTitleInput.value = round.title || '';
-        roundSubtitleInput.value = round.subtitle || '';
-    }
+    syncRoundMetaInputs();
 }
 
 function renderCategoryList() {
@@ -267,8 +348,7 @@ function renderCategoryEditor() {
     categoryEditor.classList.remove('hidden');
 
     catNameInput.value = cat.name || '';
-    roundTitleInput.value = round.title || '';
-    roundSubtitleInput.value = round.subtitle || '';
+    syncRoundMetaInputs();
 
     ensureQuestionCount(cat, round);
 
