@@ -31,6 +31,7 @@
         <div class="host-header-right">
             <span class="host-room-code" title="Код для табло">SVOYAK</span>
             <span id="host-status" class="host-status disconnected">Табло offline</span>
+            <button id="host-to-lobby-btn" class="host-btn host-btn-ghost hidden" type="button">← В лобби</button>
             <button id="host-to-board-btn" class="host-btn host-btn-ghost hidden" type="button">← Табло</button>
         </div>
     </header>
@@ -63,28 +64,13 @@
                         <p>На TV откройте <code>index.html</code> и нажмите «Подключиться»</p>
                     </div>
                 </div>
-                <div class="round-cards">
-                    <button id="start-round-1" class="round-card round-btn" data-round="1" disabled>
-                        <span class="round-card-num">1</span>
-                        <span class="round-card-info">
-                            <strong>Разминка</strong>
-                            <small>100 – 500</small>
-                        </span>
-                    </button>
-                    <button id="start-round-2" class="round-card round-btn" data-round="2" disabled>
-                        <span class="round-card-num">2</span>
-                        <span class="round-card-info">
-                            <strong>Основной</strong>
-                            <small>200 – 1000</small>
-                        </span>
-                    </button>
-                    <button id="start-round-3" class="round-card round-btn" data-round="3" disabled>
-                        <span class="round-card-num">3</span>
-                        <span class="round-card-info">
-                            <strong>Финальный</strong>
-                            <small>500 – 2500</small>
-                        </span>
-                    </button>
+                <div id="round-cards" class="round-cards"></div>
+                <div id="host-finale-banner" class="host-finale-banner hidden">
+                    <p>🎉 Игра завершена!</p>
+                    <div class="finale-banner-actions">
+                        <button type="button" id="finale-to-lobby-btn" class="host-btn host-btn-primary">← Вернуться в лобби</button>
+                        <button type="button" id="finale-new-game-btn" class="host-btn host-btn-danger-outline">Новая игра</button>
+                    </div>
                 </div>
                 <p id="round-hint" class="round-hint">Добавьте хотя бы одного игрока</p>
                 <a href="editor.html" class="host-editor-link">✎ Редактор вопросов — свои категории и картинки</a>
@@ -191,9 +177,9 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-    <script src="js/firebase-config.js?v=7"></script>
-    <script src="js/data.js?v=7"></script>
-    <script src="js/sync.js?v=7"></script>
-    <script src="js/host.js?v=7"></script>
+    <script src="js/firebase-config.js?v=8"></script>
+    <script src="js/data.js?v=8"></script>
+    <script src="js/sync.js?v=8"></script>
+    <script src="js/host.js?v=8"></script>
 </body>
 </html>

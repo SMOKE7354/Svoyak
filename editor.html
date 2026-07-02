@@ -36,7 +36,13 @@
     <main class="editor-main">
         <aside class="editor-sidebar">
             <div class="sidebar-section">
-                <h2>Раунды</h2>
+                <div class="section-head">
+                    <h2>Раунды</h2>
+                    <div class="round-actions">
+                        <button type="button" id="btn-add-round" class="ed-btn ed-btn-sm ed-btn-gold" title="Добавить раунд">+</button>
+                        <button type="button" id="btn-delete-round" class="ed-btn ed-btn-sm ed-btn-danger" title="Удалить раунд">−</button>
+                    </div>
+                </div>
                 <div id="round-tabs" class="round-tabs"></div>
             </div>
 
@@ -54,8 +60,22 @@
         </aside>
 
         <section class="editor-workspace">
+            <div id="round-settings" class="round-settings">
+                <h2 class="panel-title">Раунд <span id="round-settings-num">1</span></h2>
+                <div class="round-meta round-meta-full">
+                    <div>
+                        <label class="field-label">Название раунда</label>
+                        <input type="text" id="round-title-input" class="ed-input" placeholder="Раунд 1">
+                    </div>
+                    <div>
+                        <label class="field-label">Описание (показывается на табло)</label>
+                        <input type="text" id="round-subtitle-input" class="ed-input" placeholder="Разминка — вопросы за 100–500">
+                    </div>
+                </div>
+            </div>
+
             <div id="empty-state" class="empty-state">
-                <p>Выберите категорию слева или создайте новую</p>
+                <p>Выберите категорию слева или нажмите «+» чтобы создать</p>
             </div>
 
             <div id="category-editor" class="category-editor hidden">
@@ -65,19 +85,12 @@
                     <button type="button" id="btn-delete-category" class="ed-btn ed-btn-danger ed-btn-sm">Удалить категорию</button>
                 </div>
 
-                <div class="round-meta">
-                    <label class="field-label">Название раунда</label>
-                    <input type="text" id="round-title-input" class="ed-input">
-                    <label class="field-label">Подзаголовок (на табло)</label>
-                    <input type="text" id="round-subtitle-input" class="ed-input">
-                </div>
-
                 <div id="questions-list" class="questions-list"></div>
             </div>
         </section>
     </main>
 
-    <script src="js/data.js?v=7"></script>
-    <script src="js/editor.js?v=7"></script>
+    <script src="js/data.js?v=8"></script>
+    <script src="js/editor.js?v=8"></script>
 </body>
 </html>
