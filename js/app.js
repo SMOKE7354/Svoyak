@@ -42,6 +42,19 @@ let showingRoundSplash = false;
 function init() {
     setupConnectUI();
     connectToGame();
+
+    window.addEventListener('svoyak-game-updated', () => {
+        GameData.reload();
+        lastBoardKey = '';
+        if (connected) renderScreen(true);
+    });
+    window.addEventListener('storage', (e) => {
+        if (e.key === GameData.storageKey || e.key === 'svoyak_game_data_version') {
+            GameData.reload();
+            lastBoardKey = '';
+            if (connected) renderScreen(true);
+        }
+    });
 }
 
 function setupConnectUI() {

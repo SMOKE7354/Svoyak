@@ -35,9 +35,26 @@ const hostQPrice = document.getElementById('host-q-price');
 const hostQText = document.getElementById('host-q-text');
 const hostQAnswer = document.getElementById('host-q-answer');
 
+function onGameDataUpdated() {
+    GameData.reload();
+    lastBoardKey = '';
+    renderRoundCards();
+    renderLobby();
+    if (state.screen === 'board' || state.screen === 'question') {
+        renderGame();
+    }
+}
+
 function init() {
     state = gameSync.load();
     setupEventListeners();
+
+    window.addEventListener('svoyak-game-updated', onGameDataUpdated);
+    window.addEventListener('storage', (e) => {
+        if (e.key === GameData.storageKey || e.key === 'svoyak_game_data_version') {
+            onGameDataUpdated();
+        }
+    });
 
     if (gameSync.needsFirebaseSetup() && firebaseBanner) {
         firebaseBanner.classList.remove('hidden');

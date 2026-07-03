@@ -206,8 +206,27 @@ const DEFAULT_GAME_ROUNDS = [
 ];
 
 const CUSTOM_GAME_STORAGE_KEY = 'svoyak_custom_game';
+const GAME_DATA_VERSION_KEY = 'svoyak_game_data_version';
+const GAME_DATA_VERSION = 'adult-v2-2026';
+
+function cloneRounds(rounds) {
+    return JSON.parse(JSON.stringify(rounds));
+}
+
+function persistRounds(rounds) {
+    localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
+    localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(rounds));
+}
 
 function loadGameRounds() {
+    const storedVersion = localStorage.getItem(GAME_DATA_VERSION_KEY);
+
+    if (storedVersion !== GAME_DATA_VERSION) {
+        const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
+        persistRounds(fresh);
+        return fresh;
+    }
+
     try {
         const saved = localStorage.getItem(CUSTOM_GAME_STORAGE_KEY);
         if (saved) {
@@ -215,7 +234,10 @@ function loadGameRounds() {
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
     } catch { /* use default */ }
-    return DEFAULT_GAME_ROUNDS;
+
+    const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
+    persistRounds(fresh);
+    return fresh;
 }
 
 let gameRounds = loadGameRounds();
@@ -228,14 +250,15 @@ const GameData = {
     },
 
     save(rounds) {
-        localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(rounds));
+        persistRounds(rounds);
         gameRounds = rounds;
         window.dispatchEvent(new CustomEvent('svoyak-game-updated'));
     },
 
     resetToDefault() {
-        localStorage.removeItem(CUSTOM_GAME_STORAGE_KEY);
-        gameRounds = DEFAULT_GAME_ROUNDS;
+        const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
+        persistRounds(fresh);
+        gameRounds = fresh;
         window.dispatchEvent(new CustomEvent('svoyak-game-updated'));
     },
 

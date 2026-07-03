@@ -17,6 +17,21 @@ const questionsList = document.getElementById('questions-list');
 const editorStatus = document.getElementById('editor-status');
 const toast = document.getElementById('toast');
 
+function reloadFromStorage() {
+    GameData.reload();
+    rounds = deepClone(GameData.getRounds());
+    dirty = false;
+    updateStatusLine();
+    renderRoundTabs();
+    renderCategoryList();
+    const round = getActiveRound();
+    if (round && activeCategoryIndex >= 0 && round.categories[activeCategoryIndex]) {
+        renderCategoryEditor();
+    } else {
+        showEditorEmpty();
+    }
+}
+
 function init() {
     rounds = deepClone(GameData.getRounds());
     updateStatusLine();
@@ -24,6 +39,13 @@ function init() {
     renderCategoryList();
     bindGlobalActions();
     selectRound(1);
+
+    window.addEventListener('svoyak-game-updated', reloadFromStorage);
+    window.addEventListener('storage', (e) => {
+        if (e.key === GameData.storageKey || e.key === 'svoyak_game_data_version') {
+            reloadFromStorage();
+        }
+    });
 }
 
 function deepClone(obj) {
