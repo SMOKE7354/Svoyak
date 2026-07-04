@@ -1,17 +1,6 @@
 const STORAGE_KEY = 'gameState';
 const ROOM_CODE = 'SVOYAK';
 
-function slimCurrentQuestion(question) {
-    if (!question || typeof question !== 'object') return null;
-    return {
-        id: question.id,
-        categoryName: question.categoryName,
-        price: question.price,
-        text: question.text,
-        answer: question.answer
-    };
-}
-
 function createInitialState() {
     return {
         screen: 'lobby',
@@ -36,9 +25,7 @@ function normalizeState(raw) {
         ...base,
         ...raw,
         players: Array.isArray(raw.players) ? raw.players : [],
-        playedQuestions: Array.isArray(raw.playedQuestions) ? raw.playedQuestions : [],
-        currentQuestion: slimCurrentQuestion(raw.currentQuestion),
-        showAnswerImage: !!raw.showAnswerImage
+        playedQuestions: Array.isArray(raw.playedQuestions) ? raw.playedQuestions : []
     };
 }
 
@@ -76,16 +63,7 @@ const gameSync = {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
             try {
-                const raw = JSON.parse(saved);
-                const normalized = normalizeState(raw);
-                if (raw?.currentQuestion?.image || raw?.currentQuestion?.answerImage) {
-                    try {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-                    } catch (err) {
-                        console.warn('Не удалось очистить старое состояние игры:', err);
-                    }
-                }
-                return normalized;
+                return normalizeState(JSON.parse(saved));
             } catch {
                 return createInitialState();
             }
@@ -95,12 +73,7 @@ const gameSync = {
 
     save(state, notifyLocal = true) {
         state = normalizeState(state);
-
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        } catch (err) {
-            console.warn('Не удалось сохранить состояние игры:', err);
-        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
         if (this.syncMode === 'cloud' && this.mode === 'host' && this._stateRef) {
             this._stateRef.set(state).catch((err) => {

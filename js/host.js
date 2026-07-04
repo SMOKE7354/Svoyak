@@ -42,11 +42,11 @@ const showAnswerImageBtn = document.getElementById('show-answer-image-btn');
 function onGameDataUpdated() {
     GameData.reload();
     lastBoardKey = '';
-    renderAll();
-}
-
-function getActiveQuestion() {
-    return resolveQuestionMedia(state.currentQuestion);
+    renderRoundCards();
+    renderLobby();
+    if (state.screen === 'board' || state.screen === 'question') {
+        renderGame();
+    }
 }
 
 function init() {
@@ -243,7 +243,9 @@ function openQuestion(categoryName, q) {
         id: q.id,
         price: q.price,
         text: q.text,
-        answer: q.answer
+        answer: q.answer,
+        image: q.image,
+        answerImage: q.answerImage
     };
     state.screen = 'question';
     state.showAnswer = false;
@@ -277,19 +279,19 @@ function nobodyAnswered() {
 
 function showAnswer() {
     state.showAnswer = true;
-    if (getActiveQuestion()?.answerImage) {
+    if (state.currentQuestion?.answerImage) {
         state.showAnswerImage = true;
     }
     stopTimer(true);
-    saveState(false);
+    gameSync.save(state);
     renderQuestion();
 }
 
 function showAnswerImage() {
-    if (!getActiveQuestion()?.answerImage) return;
+    if (!state.currentQuestion?.answerImage) return;
     state.showAnswerImage = true;
     stopTimer(true);
-    saveState(false);
+    gameSync.save(state);
     renderQuestion();
 }
 
@@ -521,21 +523,20 @@ function renderBoard() {
 }
 
 function renderQuestion() {
-    const q = getActiveQuestion();
-    if (!q) return;
-    hostQCategory.textContent = q.categoryName;
-    hostQPrice.textContent = q.price;
-    hostQText.textContent = q.text;
-    hostQAnswer.textContent = q.answer;
+    if (!state.currentQuestion) return;
+    hostQCategory.textContent = state.currentQuestion.categoryName;
+    hostQPrice.textContent = state.currentQuestion.price;
+    hostQText.textContent = state.currentQuestion.text;
+    hostQAnswer.textContent = state.currentQuestion.answer;
 
-    setHostThumb(hostQImage, q.image);
-    setHostThumb(hostQAnswerImage, q.answerImage);
+    setHostThumb(hostQImage, state.currentQuestion.image);
+    setHostThumb(hostQAnswerImage, state.currentQuestion.answerImage);
 
     if (hostQAnswerImageHint) {
-        hostQAnswerImageHint.classList.toggle('hidden', !q.answerImage);
+        hostQAnswerImageHint.classList.toggle('hidden', !state.currentQuestion.answerImage);
     }
     if (showAnswerImageBtn) {
-        showAnswerImageBtn.classList.toggle('hidden', !q.answerImage);
+        showAnswerImageBtn.classList.toggle('hidden', !state.currentQuestion.answerImage);
         showAnswerImageBtn.disabled = !!state.showAnswerImage;
         showAnswerImageBtn.textContent = state.showAnswerImage ? '🖼 На табло' : '🖼 Картинка ответа';
     }

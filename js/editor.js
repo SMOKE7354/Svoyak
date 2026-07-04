@@ -118,15 +118,11 @@ function bindGlobalActions() {
         }
     });
 
-    document.querySelectorAll('.ed-link').forEach(link => {
-        link.addEventListener('click', (e) => {
-            if (!dirty) return;
-            if (!confirm('Есть несохранённые изменения. Уйти без сохранения?')) {
-                e.preventDefault();
-            } else {
-                dirty = false;
-            }
-        });
+    window.addEventListener('beforeunload', (e) => {
+        if (dirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
     });
 }
 

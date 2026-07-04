@@ -55,12 +55,6 @@ function init() {
             lastBoardKey = '';
             if (connected) renderScreen(true);
         }
-        if (e.key === 'gameState' && e.newValue && connected) {
-            try {
-                state = normalizeState(JSON.parse(e.newValue));
-                renderScreen(true);
-            } catch { /* ignore */ }
-        }
     });
 }
 
@@ -147,6 +141,8 @@ function visualStateKey(s) {
         s.players.map(p => `${p.id}:${p.name}:${p.score}`).join('|'),
         s.currentQuestion?.id,
         s.currentQuestion?.text,
+        s.currentQuestion?.image,
+        s.currentQuestion?.answerImage,
         s.showAnswer,
         s.showAnswerImage,
         s.roundAnnouncement
@@ -180,22 +176,20 @@ function onStateUpdate(newState) {
 
 function patchLiveFields() {
     if (state.screen === 'question' && state.currentQuestion) {
-        const q = resolveQuestionMedia(state.currentQuestion);
         if (state.showAnswer) {
-            questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${q.answer}`;
+            questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${state.currentQuestion.answer}`;
             questionAnswerDisplay.classList.remove('hidden');
         } else {
             questionAnswerDisplay.classList.add('hidden');
         }
-        updateAnswerImageDisplay(q);
+        updateAnswerImageDisplay();
     }
     updateScoresInPlace();
 }
 
-function updateAnswerImageDisplay(question) {
+function updateAnswerImageDisplay() {
     if (!questionAnswerImage) return;
-    const q = question || resolveQuestionMedia(state.currentQuestion);
-    const src = q?.answerImage;
+    const src = state.currentQuestion?.answerImage;
     if (state.showAnswerImage && src) {
         questionAnswerImage.src = src;
         questionAnswerImage.classList.remove('hidden');
@@ -408,15 +402,14 @@ function updateScoresInPlace() {
 }
 
 function renderQuestion() {
-    const q = resolveQuestionMedia(state.currentQuestion);
-    if (!q) return;
+    if (!state.currentQuestion) return;
 
-    questionPrice.textContent = q.price;
-    questionCategory.textContent = q.categoryName || '';
-    questionText.textContent = q.text;
+    questionPrice.textContent = state.currentQuestion.price;
+    questionCategory.textContent = state.currentQuestion.categoryName || '';
+    questionText.textContent = state.currentQuestion.text;
 
-    if (q.image) {
-        questionImage.src = q.image;
+    if (state.currentQuestion.image) {
+        questionImage.src = state.currentQuestion.image;
         questionImage.classList.remove('hidden');
     } else {
         questionImage.classList.add('hidden');
@@ -424,13 +417,13 @@ function renderQuestion() {
     }
 
     if (state.showAnswer) {
-        questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${q.answer}`;
+        questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${state.currentQuestion.answer}`;
         questionAnswerDisplay.classList.remove('hidden');
     } else {
         questionAnswerDisplay.classList.add('hidden');
     }
 
-    updateAnswerImageDisplay(q);
+    updateAnswerImageDisplay();
 
     updateTimerDisplay();
 }

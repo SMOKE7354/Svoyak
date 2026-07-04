@@ -214,36 +214,30 @@ function cloneRounds(rounds) {
 }
 
 function persistRounds(rounds) {
-    try {
-        localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
-        localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(rounds));
-        return true;
-    } catch (err) {
-        console.warn('Не удалось сохранить вопросы в localStorage:', err);
-        return false;
-    }
+    localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
+    localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(rounds));
 }
 
 function loadGameRounds() {
+    const storedVersion = localStorage.getItem(GAME_DATA_VERSION_KEY);
+
+    if (storedVersion !== GAME_DATA_VERSION) {
+        const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
+        persistRounds(fresh);
+        return fresh;
+    }
+
     try {
-        const storedVersion = localStorage.getItem(GAME_DATA_VERSION_KEY);
-
-        if (storedVersion !== GAME_DATA_VERSION) {
-            const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
-            persistRounds(fresh);
-            return fresh;
-        }
-
         const saved = localStorage.getItem(CUSTOM_GAME_STORAGE_KEY);
         if (saved) {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
-    } catch (err) {
-        console.warn('Не удалось загрузить вопросы из localStorage:', err);
-    }
+    } catch { /* use default */ }
 
-    return cloneRounds(DEFAULT_GAME_ROUNDS);
+    const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
+    persistRounds(fresh);
+    return fresh;
 }
 
 let gameRounds = loadGameRounds();
@@ -256,9 +250,7 @@ const GameData = {
     },
 
     save(rounds) {
-        if (!persistRounds(rounds)) {
-            throw new Error('Не хватает места в браузере. Удалите часть картинок или экспортируйте игру.');
-        }
+        persistRounds(rounds);
         gameRounds = rounds;
         window.dispatchEvent(new CustomEvent('svoyak-game-updated'));
     },
@@ -290,29 +282,6 @@ const GameData = {
         return !!localStorage.getItem(CUSTOM_GAME_STORAGE_KEY);
     }
 };
-
-function findQuestionById(questionId) {
-    if (!questionId) return null;
-    for (const round of gameRounds) {
-        for (const cat of round.categories) {
-            const q = cat.questions.find(item => item.id === questionId);
-            if (q) return { ...q, categoryName: cat.name };
-        }
-    }
-    return null;
-}
-
-function resolveQuestionMedia(questionRef) {
-    if (!questionRef) return null;
-    const full = findQuestionById(questionRef.id);
-    if (!full) return questionRef;
-    return {
-        ...questionRef,
-        categoryName: questionRef.categoryName || full.categoryName,
-        image: full.image,
-        answerImage: full.answerImage
-    };
-}
 
 function getRoundData(roundId) {
     return gameRounds.find(r => r.id === roundId) || gameRounds[0];
