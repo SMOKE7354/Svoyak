@@ -300,6 +300,9 @@ function syncFormToData() {
         const img = card.querySelector('[data-field="image"]')?.value?.trim();
         if (img) q.image = img;
         else delete q.image;
+        const answerImg = card.querySelector('[data-field="answerImage"]')?.value?.trim();
+        if (answerImg) q.answerImage = answerImg;
+        else delete q.answerImage;
     });
 }
 
@@ -395,9 +398,6 @@ function ensureQuestionCount(cat, round) {
 
 function renderQuestionCard(q, index, round) {
     const price = q.price ?? round.prices?.[index] ?? 100;
-    const imgPreview = q.image
-        ? `<div class="image-preview-wrap"><img class="image-preview" src="${escapeAttr(q.image)}" alt=""></div>`
-        : '';
 
     return `
         <div class="question-card" data-qindex="${index}">
@@ -414,18 +414,29 @@ function renderQuestionCard(q, index, round) {
                     <label class="field-label">Ответ</label>
                     <textarea class="ed-textarea" data-field="answer" rows="3" placeholder="Правильный ответ">${escapeHtml(q.answer || '')}</textarea>
                 </div>
-                <div class="image-row">
-                    <div style="flex:1">
-                        <label class="field-label">Картинка (ссылка или загрузка)</label>
-                        <input type="text" class="ed-input" data-field="image" value="${escapeAttr(q.image || '')}" placeholder="https://… или загрузите файл">
-                        ${imgPreview}
-                    </div>
-                    <label class="image-upload-label">
-                        📷 Загрузить
-                        <input type="file" accept="image/*" data-upload="${index}" hidden>
-                    </label>
-                </div>
+                ${renderImageField('image', 'Картинка к вопросу (на табло с вопросом)', q.image, index)}
+                ${renderImageField('answerImage', 'Картинка к ответу (на табло при «Показать ответ»)', q.answerImage, index, true)}
             </div>
+        </div>
+    `;
+}
+
+function renderImageField(field, label, value, index, isAnswer = false) {
+    const imgPreview = value
+        ? `<div class="image-preview-wrap"><img class="image-preview" src="${escapeAttr(value)}" alt=""></div>`
+        : '';
+
+    return `
+        <div class="image-row ${isAnswer ? 'image-row-answer' : ''}">
+            <div class="image-field">
+                <label class="field-label">${label}</label>
+                <input type="text" class="ed-input" data-field="${field}" value="${escapeAttr(value || '')}" placeholder="https://… или загрузите файл">
+                ${imgPreview}
+            </div>
+            <label class="image-upload-label">
+                📷 Загрузить
+                <input type="file" accept="image/*" data-upload-index="${index}" data-upload-field="${field}" hidden>
+            </label>
         </div>
     `;
 }
@@ -434,11 +445,13 @@ function bindQuestionCards(cat) {
     questionsList.querySelectorAll('[data-field]').forEach(el => {
         el.addEventListener('input', () => {
             markDirty();
-            if (el.dataset.field === 'image') updateImagePreview(el);
+            if (el.dataset.field === 'image' || el.dataset.field === 'answerImage') {
+                updateImagePreview(el);
+            }
         });
     });
 
-    questionsList.querySelectorAll('input[data-upload]').forEach(input => {
+    questionsList.querySelectorAll('input[data-upload-field]').forEach(input => {
         input.addEventListener('change', (e) => handleImageUpload(e, cat));
     });
 }
@@ -446,7 +459,9 @@ function bindQuestionCards(cat) {
 function updateImagePreview(input) {
     const card = input.closest('.question-card');
     if (!card) return;
-    let wrap = card.querySelector('.image-preview-wrap');
+    const container = input.closest('.image-field');
+    if (!container) return;
+    let wrap = container.querySelector('.image-preview-wrap');
     const url = input.value.trim();
     if (!url) {
         wrap?.remove();
@@ -455,7 +470,7 @@ function updateImagePreview(input) {
     if (!wrap) {
         wrap = document.createElement('div');
         wrap.className = 'image-preview-wrap';
-        input.parentElement.appendChild(wrap);
+        container.appendChild(wrap);
     }
     wrap.innerHTML = `<img class="image-preview" src="${escapeAttr(url)}" alt="">`;
 }
@@ -467,13 +482,14 @@ function handleImageUpload(e, cat) {
         showToast('Картинка слишком большая (макс. ~800 КБ)', true);
         return;
     }
-    const index = parseInt(e.target.dataset.upload, 10);
+    const index = parseInt(e.target.dataset.uploadIndex, 10);
+    const field = e.target.dataset.uploadField || 'image';
     const reader = new FileReader();
     reader.onload = () => {
-        cat.questions[index].image = reader.result;
+        cat.questions[index][field] = reader.result;
         markDirty();
         renderCategoryEditor();
-        showToast('Картинка добавлена');
+        showToast(field === 'answerImage' ? 'Картинка к ответу добавлена' : 'Картинка добавлена');
     };
     reader.readAsDataURL(file);
     e.target.value = '';

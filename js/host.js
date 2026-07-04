@@ -34,6 +34,10 @@ const hostQCategory = document.getElementById('host-q-category');
 const hostQPrice = document.getElementById('host-q-price');
 const hostQText = document.getElementById('host-q-text');
 const hostQAnswer = document.getElementById('host-q-answer');
+const hostQImage = document.getElementById('host-q-image');
+const hostQAnswerImage = document.getElementById('host-q-answer-image');
+const hostQAnswerImageHint = document.getElementById('host-q-answer-image-hint');
+const showAnswerImageBtn = document.getElementById('show-answer-image-btn');
 
 function onGameDataUpdated() {
     GameData.reload();
@@ -113,6 +117,7 @@ function setupEventListeners() {
     hostToBoardBtn?.addEventListener('click', goToBoard);
     document.getElementById('nobody-answered-btn').addEventListener('click', nobodyAnswered);
     document.getElementById('show-answer-btn').addEventListener('click', showAnswer);
+    showAnswerImageBtn?.addEventListener('click', showAnswerImage);
     document.getElementById('start-timer-btn').addEventListener('click', startTimer);
     document.getElementById('stop-timer-btn')?.addEventListener('click', stopTimer);
 
@@ -142,6 +147,7 @@ function handleHotkey(e) {
     if (state.screen === 'question' && state.currentQuestion) {
         if (e.code === 'Space') { e.preventDefault(); startTimer(); return; }
         if (e.code === 'KeyA') { showAnswer(); return; }
+        if (e.code === 'KeyI') { showAnswerImage(); return; }
         if (e.code === 'Escape') { goToBoard(); return; }
         if (e.code === 'KeyN') { nobodyAnswered(); return; }
 
@@ -182,6 +188,7 @@ function startRound(roundId) {
     state.screen = 'board';
     state.currentQuestion = null;
     state.showAnswer = false;
+    state.showAnswerImage = false;
     state.roundAnnouncement = Date.now();
     if (!Array.isArray(state.playedQuestions)) state.playedQuestions = [];
     lastBoardKey = '';
@@ -214,6 +221,7 @@ function goToLobby() {
     state.screen = 'lobby';
     state.currentQuestion = null;
     state.showAnswer = false;
+    state.showAnswerImage = false;
     lastBoardKey = '';
     awardPanelBuilt = false;
     stopTimer(true);
@@ -236,10 +244,12 @@ function openQuestion(categoryName, q) {
         price: q.price,
         text: q.text,
         answer: q.answer,
-        image: q.image
+        image: q.image,
+        answerImage: q.answerImage
     };
     state.screen = 'question';
     state.showAnswer = false;
+    state.showAnswerImage = false;
     awardPanelBuilt = false;
     stopTimer(true);
     saveState();
@@ -255,6 +265,7 @@ function goToBoard() {
     state.currentQuestion = null;
     state.screen = 'board';
     state.showAnswer = false;
+    state.showAnswerImage = false;
     awardPanelBuilt = false;
     stopTimer(true);
     saveState();
@@ -268,8 +279,20 @@ function nobodyAnswered() {
 
 function showAnswer() {
     state.showAnswer = true;
+    if (state.currentQuestion?.answerImage) {
+        state.showAnswerImage = true;
+    }
     stopTimer(true);
     gameSync.save(state);
+    renderQuestion();
+}
+
+function showAnswerImage() {
+    if (!state.currentQuestion?.answerImage) return;
+    state.showAnswerImage = true;
+    stopTimer(true);
+    gameSync.save(state);
+    renderQuestion();
 }
 
 function startTimer() {
@@ -505,8 +528,32 @@ function renderQuestion() {
     hostQPrice.textContent = state.currentQuestion.price;
     hostQText.textContent = state.currentQuestion.text;
     hostQAnswer.textContent = state.currentQuestion.answer;
+
+    setHostThumb(hostQImage, state.currentQuestion.image);
+    setHostThumb(hostQAnswerImage, state.currentQuestion.answerImage);
+
+    if (hostQAnswerImageHint) {
+        hostQAnswerImageHint.classList.toggle('hidden', !state.currentQuestion.answerImage);
+    }
+    if (showAnswerImageBtn) {
+        showAnswerImageBtn.classList.toggle('hidden', !state.currentQuestion.answerImage);
+        showAnswerImageBtn.disabled = !!state.showAnswerImage;
+        showAnswerImageBtn.textContent = state.showAnswerImage ? '🖼 На табло' : '🖼 Картинка ответа';
+    }
+
     updateTimerUI();
     renderAwardPanel();
+}
+
+function setHostThumb(imgEl, src) {
+    if (!imgEl) return;
+    if (src) {
+        imgEl.src = src;
+        imgEl.classList.remove('hidden');
+    } else {
+        imgEl.classList.add('hidden');
+        imgEl.src = '';
+    }
 }
 
 function renderSidebar() {

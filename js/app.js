@@ -27,6 +27,7 @@ const questionCategory = document.getElementById('question-category');
 const questionText = document.getElementById('question-text');
 const questionImage = document.getElementById('question-image');
 const questionAnswerDisplay = document.getElementById('question-answer-display');
+const questionAnswerImage = document.getElementById('question-answer-image');
 const timerDisplay = document.getElementById('timer-display');
 const effectsOverlay = document.getElementById('effects-overlay');
 const displayStatus = document.getElementById('display-status');
@@ -141,7 +142,9 @@ function visualStateKey(s) {
         s.currentQuestion?.id,
         s.currentQuestion?.text,
         s.currentQuestion?.image,
+        s.currentQuestion?.answerImage,
         s.showAnswer,
+        s.showAnswerImage,
         s.roundAnnouncement
     ].join('::');
 }
@@ -179,8 +182,21 @@ function patchLiveFields() {
         } else {
             questionAnswerDisplay.classList.add('hidden');
         }
+        updateAnswerImageDisplay();
     }
     updateScoresInPlace();
+}
+
+function updateAnswerImageDisplay() {
+    if (!questionAnswerImage) return;
+    const src = state.currentQuestion?.answerImage;
+    if (state.showAnswerImage && src) {
+        questionAnswerImage.src = src;
+        questionAnswerImage.classList.remove('hidden');
+    } else {
+        questionAnswerImage.classList.add('hidden');
+        questionAnswerImage.src = '';
+    }
 }
 
 function updateTimerDisplay() {
@@ -406,6 +422,8 @@ function renderQuestion() {
     } else {
         questionAnswerDisplay.classList.add('hidden');
     }
+
+    updateAnswerImageDisplay();
 
     updateTimerDisplay();
 }

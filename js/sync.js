@@ -9,6 +9,7 @@ function createInitialState() {
         playedQuestions: [],
         currentQuestion: null,
         showAnswer: false,
+        showAnswerImage: false,
         timerValue: null,
         timerActive: false,
         effect: null,
