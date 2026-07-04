@@ -65,6 +65,26 @@
     color: var(--ed-muted);
 }
 
+.editor-status.status-warn {
+    color: #ffb347;
+}
+
+.image-path-hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.7rem;
+    color: var(--ed-muted);
+}
+
+.image-path-hint code {
+    color: #9fdcff;
+}
+
+.image-embed-warn {
+    margin: 0.35rem 0 0;
+    font-size: 0.72rem;
+    color: #ffb347;
+}
+
 .editor-actions {
     display: flex;
     flex-wrap: wrap;
@@ -241,6 +261,10 @@
     font-size: 0.75rem;
     line-height: 1.45;
     color: var(--ed-muted);
+}
+
+.sidebar-hint p + p {
+    margin-top: 0.5rem;
 }
 
 .sidebar-hint strong { color: #fff; }

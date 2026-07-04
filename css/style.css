@@ -144,11 +144,10 @@ body {
 }
 
 /* Question Screen */
-#question-screen { justify-content: center; align-items: center; padding: 24px 32px; }
+#question-screen { justify-content: center; align-items: center; padding: 40px; }
 .question-container {
-    flex: 1; width: 100%; max-width: 1400px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; text-align: center;
-    padding: 36px 48px 40px; margin-bottom: 24px;
+    flex: 1; width: 100%; max-width: 1200px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 60px; margin-bottom: 40px;
     animation: questionReveal 0.5s ease forwards;
 }
 @keyframes questionReveal {
@@ -162,35 +161,63 @@ body {
     0% { opacity: 0; transform: translateY(20px); }
     100% { opacity: 1; transform: translateY(0); }
 }
-#question-price { font-size: 3rem; margin-bottom: 12px; color: var(--text-muted); }
-#question-text {
-    font-size: 2.2rem; line-height: 1.35; font-weight: 700;
-    margin-bottom: 20px; max-width: 96%;
-}
+#question-price { font-size: 3.5rem; margin-bottom: 20px; color: var(--text-muted); }
 .question-image {
-    display: block;
-    width: min(96%, 1200px);
-    max-height: 58vh;
-    margin-left: auto;
-    margin-right: auto;
-    border: 2px solid var(--panel-border);
-    border-radius: 16px;
-    object-fit: contain;
-    background: rgba(0, 0, 0, 0.35);
-}
-.question-image-main {
-    flex: 1 1 auto;
-    min-height: 280px;
-    max-height: 62vh;
+    max-width: min(420px, 55vw);
+    max-height: 22vh;
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
     margin-bottom: 16px;
+    object-fit: contain;
+    cursor: zoom-in;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.question-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 24px rgba(255, 255, 255, 0.12);
 }
 .question-answer-image {
-    margin-top: 20px;
+    margin-top: 16px;
     margin-bottom: 0;
-    max-height: 52vh;
     animation: answerSlide 0.4s ease forwards;
     border-color: var(--success);
+    max-height: 28vh;
 }
+.image-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.94);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    cursor: zoom-out;
+}
+.image-lightbox:not(.hidden) { display: flex !important; }
+.image-lightbox img {
+    max-width: 95vw;
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+.image-lightbox-close {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 52px;
+    height: 52px;
+    border: 1px solid var(--panel-border);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.image-lightbox-close:hover { background: rgba(255, 255, 255, 0.16); }
+#question-text { font-size: 2.5rem; line-height: 1.4; font-weight: 700; margin-bottom: 20px; }
 .question-answer {
     font-size: 2rem; color: #000; background: var(--success);
     padding: 15px 30px; border-radius: 12px; margin-top: 10px; font-weight: bold;
