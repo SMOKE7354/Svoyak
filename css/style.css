@@ -144,10 +144,11 @@ body {
 }
 
 /* Question Screen */
-#question-screen { justify-content: center; align-items: center; padding: 40px; }
+#question-screen { justify-content: center; align-items: center; padding: 24px 32px; }
 .question-container {
-    flex: 1; width: 100%; max-width: 1200px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; text-align: center; padding: 60px; margin-bottom: 40px;
+    flex: 1; width: 100%; max-width: 1400px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    padding: 36px 48px 40px; margin-bottom: 24px;
     animation: questionReveal 0.5s ease forwards;
 }
 @keyframes questionReveal {
@@ -161,18 +162,35 @@ body {
     0% { opacity: 0; transform: translateY(20px); }
     100% { opacity: 1; transform: translateY(0); }
 }
-#question-price { font-size: 3.5rem; margin-bottom: 20px; color: var(--text-muted); }
+#question-price { font-size: 3rem; margin-bottom: 12px; color: var(--text-muted); }
+#question-text {
+    font-size: 2.2rem; line-height: 1.35; font-weight: 700;
+    margin-bottom: 20px; max-width: 96%;
+}
 .question-image {
-    max-width: 80%; max-height: 40vh; border: 1px solid var(--panel-border);
-    border-radius: 12px; margin-bottom: 20px;
+    display: block;
+    width: min(96%, 1200px);
+    max-height: 58vh;
+    margin-left: auto;
+    margin-right: auto;
+    border: 2px solid var(--panel-border);
+    border-radius: 16px;
+    object-fit: contain;
+    background: rgba(0, 0, 0, 0.35);
+}
+.question-image-main {
+    flex: 1 1 auto;
+    min-height: 280px;
+    max-height: 62vh;
+    margin-bottom: 16px;
 }
 .question-answer-image {
-    margin-top: 16px;
+    margin-top: 20px;
     margin-bottom: 0;
+    max-height: 52vh;
     animation: answerSlide 0.4s ease forwards;
     border-color: var(--success);
 }
-#question-text { font-size: 2.5rem; line-height: 1.4; font-weight: 700; margin-bottom: 20px; }
 .question-answer {
     font-size: 2rem; color: #000; background: var(--success);
     padding: 15px 30px; border-radius: 12px; margin-top: 10px; font-weight: bold;
