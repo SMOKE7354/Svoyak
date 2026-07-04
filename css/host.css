@@ -792,6 +792,23 @@
     line-height: 1.45;
 }
 
+.host-q-thumb {
+    display: block;
+    max-width: 100%;
+    max-height: 100px;
+    margin-top: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--h-border);
+    object-fit: contain;
+}
+
+.host-q-image-hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.7rem;
+    color: var(--h-muted);
+    font-style: italic;
+}
+
 /* Начисление очков */
 .award-section {
     margin-bottom: 0.85rem;

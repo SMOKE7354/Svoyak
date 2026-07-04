@@ -407,7 +407,14 @@
     align-items: flex-start;
 }
 
-.image-row .ed-input { flex: 1; min-width: 180px; }
+.image-row .image-field { flex: 1; min-width: 180px; }
+
+.image-row-answer {
+    padding-top: 0.35rem;
+    border-top: 1px dashed rgba(255, 215, 0, 0.2);
+}
+
+.image-row-answer .field-label { color: var(--ed-gold); }
 
 .image-preview-wrap {
     width: 100%;
