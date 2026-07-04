@@ -18,6 +18,7 @@
         </div>
         <div class="editor-actions">
             <button type="button" id="btn-save" class="ed-btn ed-btn-primary">💾 Сохранить в игру</button>
+            <button type="button" id="btn-export-images" class="ed-btn ed-btn-ghost" title="Загрузить старые встроенные картинки в Firebase">☁️ В Firebase</button>
             <button type="button" id="btn-export" class="ed-btn ed-btn-ghost">Экспорт JSON</button>
             <label class="ed-btn ed-btn-ghost ed-btn-file">
                 Импорт JSON
@@ -55,7 +56,9 @@
             </div>
 
             <div class="sidebar-section sidebar-hint">
-                <p>Всё сохраняется <strong>локально</strong> в браузере — Firebase не нужен. После сохранения обновите панель ведущего.</p>
+                <p>Картинки загружаются в <strong>Firebase Storage</strong> — работают на табло, ведущем и Render без ручного копирования.</p>
+                <p>Папка <strong>images/</strong> — для деплоя на Render (файлы в git). Можно и так, и через Firebase.</p>
+                <p>После «Сохранить в игру» всё синхронизируется автоматически.</p>
             </div>
         </aside>
 
@@ -90,7 +93,13 @@
         </section>
     </main>
 
-    <script src="js/data.js?v=10"></script>
-    <script src="js/editor.js?v=10"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+    <script src="js/firebase-config.js?v=14"></script>
+    <script src="js/data.js?v=14"></script>
+    <script src="js/sync.js?v=14"></script>
+    <script src="js/firebase-media.js?v=14"></script>
+    <script src="js/editor.js?v=14"></script>
 </body>
 </html>
