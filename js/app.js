@@ -28,6 +28,8 @@ const questionText = document.getElementById('question-text');
 const questionImage = document.getElementById('question-image');
 const questionAnswerDisplay = document.getElementById('question-answer-display');
 const questionAnswerImage = document.getElementById('question-answer-image');
+const imageLightbox = document.getElementById('image-lightbox');
+const imageLightboxImg = document.getElementById('image-lightbox-img');
 const timerDisplay = document.getElementById('timer-display');
 const effectsOverlay = document.getElementById('effects-overlay');
 const displayStatus = document.getElementById('display-status');
@@ -42,6 +44,7 @@ let showingRoundSplash = false;
 
 function init() {
     setupConnectUI();
+    setupImageLightbox();
     connectToGame();
 
     window.addEventListener('svoyak-game-updated', () => {
@@ -56,6 +59,48 @@ function init() {
             if (connected) renderScreen(true);
         }
     });
+}
+
+function setupImageLightbox() {
+    const close = () => {
+        imageLightbox?.classList.add('hidden');
+        imageLightbox?.setAttribute('aria-hidden', 'true');
+        if (imageLightboxImg) imageLightboxImg.src = '';
+    };
+
+    questionImage?.addEventListener('click', () => {
+        if (questionImage.src && !questionImage.classList.contains('hidden')) {
+            openImageLightbox(questionImage.src);
+        }
+    });
+    questionAnswerImage?.addEventListener('click', () => {
+        if (questionAnswerImage.src && !questionAnswerImage.classList.contains('hidden')) {
+            openImageLightbox(questionAnswerImage.src);
+        }
+    });
+
+    imageLightbox?.addEventListener('click', (e) => {
+        if (e.target === imageLightbox || e.target.classList.contains('image-lightbox-close')) {
+            close();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && imageLightbox && !imageLightbox.classList.contains('hidden')) {
+            close();
+        }
+    });
+}
+
+function openImageLightbox(src) {
+    if (!imageLightbox || !imageLightboxImg || !src) return;
+    imageLightboxImg.src = src;
+    imageLightbox.classList.remove('hidden');
+    imageLightbox.setAttribute('aria-hidden', 'false');
+}
+
+function getDisplayQuestion() {
+    return resolveQuestionMedia(state.currentRound, state.currentQuestion);
 }
 
 function setupConnectUI() {
@@ -176,8 +221,9 @@ function onStateUpdate(newState) {
 
 function patchLiveFields() {
     if (state.screen === 'question' && state.currentQuestion) {
-        if (state.showAnswer) {
-            questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${state.currentQuestion.answer}`;
+        const q = getDisplayQuestion();
+        if (state.showAnswer && q) {
+            questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${q.answer}`;
             questionAnswerDisplay.classList.remove('hidden');
         } else {
             questionAnswerDisplay.classList.add('hidden');
@@ -189,7 +235,8 @@ function patchLiveFields() {
 
 function updateAnswerImageDisplay() {
     if (!questionAnswerImage) return;
-    const src = state.currentQuestion?.answerImage;
+    const q = getDisplayQuestion();
+    const src = q?.answerImage;
     if (state.showAnswerImage && src) {
         questionAnswerImage.src = src;
         questionAnswerImage.classList.remove('hidden');
@@ -402,28 +449,34 @@ function updateScoresInPlace() {
 }
 
 function renderQuestion() {
-    if (!state.currentQuestion) return;
+    const q = getDisplayQuestion();
+    if (!q) return;
 
-    questionPrice.textContent = state.currentQuestion.price;
-    questionCategory.textContent = state.currentQuestion.categoryName || '';
-    questionText.textContent = state.currentQuestion.text;
+    questionPrice.textContent = q.price;
+    questionCategory.textContent = q.categoryName || '';
+    questionText.textContent = q.text;
 
-    if (state.currentQuestion.image) {
-        questionImage.src = state.currentQuestion.image;
+    if (q.image) {
+        questionImage.src = q.image;
         questionImage.classList.remove('hidden');
+        questionImage.title = 'Нажмите для увеличения';
     } else {
         questionImage.classList.add('hidden');
         questionImage.src = '';
+        questionImage.title = '';
     }
 
     if (state.showAnswer) {
-        questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${state.currentQuestion.answer}`;
+        questionAnswerDisplay.innerHTML = `<strong>Ответ:</strong> ${q.answer}`;
         questionAnswerDisplay.classList.remove('hidden');
     } else {
         questionAnswerDisplay.classList.add('hidden');
     }
 
     updateAnswerImageDisplay();
+    if (questionAnswerImage && q.answerImage) {
+        questionAnswerImage.title = 'Нажмите для увеличения';
+    }
 
     updateTimerDisplay();
 }

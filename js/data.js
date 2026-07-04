@@ -287,6 +287,18 @@ function getRoundData(roundId) {
     return gameRounds.find(r => r.id === roundId) || gameRounds[0];
 }
 
+function resolveQuestionMedia(roundId, questionRef) {
+    if (!questionRef) return null;
+    const fromBoard = getAllQuestionsForRound(roundId).find(q => q.id === questionRef.id);
+    return {
+        ...questionRef,
+        text: questionRef.text ?? fromBoard?.text ?? '',
+        answer: questionRef.answer ?? fromBoard?.answer ?? '',
+        image: fromBoard?.image ?? questionRef.image,
+        answerImage: fromBoard?.answerImage ?? questionRef.answerImage
+    };
+}
+
 function getAllQuestionsForRound(roundId) {
     const round = getRoundData(roundId);
     if (!round) return [];

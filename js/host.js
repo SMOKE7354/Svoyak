@@ -243,9 +243,7 @@ function openQuestion(categoryName, q) {
         id: q.id,
         price: q.price,
         text: q.text,
-        answer: q.answer,
-        image: q.image,
-        answerImage: q.answerImage
+        answer: q.answer
     };
     state.screen = 'question';
     state.showAnswer = false;
@@ -253,6 +251,10 @@ function openQuestion(categoryName, q) {
     awardPanelBuilt = false;
     stopTimer(true);
     saveState();
+}
+
+function getActiveQuestion() {
+    return resolveQuestionMedia(state.currentRound, state.currentQuestion);
 }
 
 function goToBoard() {
@@ -279,7 +281,8 @@ function nobodyAnswered() {
 
 function showAnswer() {
     state.showAnswer = true;
-    if (state.currentQuestion?.answerImage) {
+    const q = getActiveQuestion();
+    if (q?.answerImage) {
         state.showAnswerImage = true;
     }
     stopTimer(true);
@@ -288,7 +291,8 @@ function showAnswer() {
 }
 
 function showAnswerImage() {
-    if (!state.currentQuestion?.answerImage) return;
+    const q = getActiveQuestion();
+    if (!q?.answerImage) return;
     state.showAnswerImage = true;
     stopTimer(true);
     gameSync.save(state);
@@ -376,15 +380,25 @@ function triggerEffect(effectName) {
 function renderAll() {
     const inGame = state.screen === 'board' || state.screen === 'question';
 
-    hostLobbyScreen.classList.toggle('active', !inGame);
-    hostLobbyScreen.classList.toggle('hidden', inGame);
-    hostGameScreen.classList.toggle('active', inGame);
-    hostGameScreen.classList.toggle('hidden', !inGame);
+    setHostView(hostLobbyScreen, !inGame);
+    setHostView(hostGameScreen, inGame);
 
     hostProgressWrap?.classList.toggle('hidden', !inGame);
 
     if (inGame) renderGame();
     else renderLobby();
+}
+
+function setHostView(el, visible) {
+    if (!el) return;
+    el.classList.toggle('active', visible);
+    el.classList.remove('hidden');
+}
+
+function setHostPanel(el, visible) {
+    if (!el) return;
+    el.classList.toggle('active', visible);
+    el.classList.remove('hidden');
 }
 
 function renderLobby() {
@@ -450,10 +464,8 @@ function renderGame() {
     }
 
     const onQuestion = state.screen === 'question';
-    hostBoardScreen.classList.toggle('active', !onQuestion);
-    hostBoardScreen.classList.toggle('hidden', onQuestion);
-    hostQuestionScreen.classList.toggle('active', onQuestion);
-    hostQuestionScreen.classList.toggle('hidden', !onQuestion);
+    setHostPanel(hostBoardScreen, !onQuestion);
+    setHostPanel(hostQuestionScreen, onQuestion);
     hostToBoardBtn?.classList.toggle('hidden', !onQuestion);
 
     if (!onQuestion) renderBoardIfNeeded();
@@ -523,20 +535,21 @@ function renderBoard() {
 }
 
 function renderQuestion() {
-    if (!state.currentQuestion) return;
-    hostQCategory.textContent = state.currentQuestion.categoryName;
-    hostQPrice.textContent = state.currentQuestion.price;
-    hostQText.textContent = state.currentQuestion.text;
-    hostQAnswer.textContent = state.currentQuestion.answer;
+    const q = getActiveQuestion();
+    if (!q) return;
+    hostQCategory.textContent = q.categoryName;
+    hostQPrice.textContent = q.price;
+    hostQText.textContent = q.text;
+    hostQAnswer.textContent = q.answer;
 
-    setHostThumb(hostQImage, state.currentQuestion.image);
-    setHostThumb(hostQAnswerImage, state.currentQuestion.answerImage);
+    setHostThumb(hostQImage, q.image);
+    setHostThumb(hostQAnswerImage, q.answerImage);
 
     if (hostQAnswerImageHint) {
-        hostQAnswerImageHint.classList.toggle('hidden', !state.currentQuestion.answerImage);
+        hostQAnswerImageHint.classList.toggle('hidden', !q.answerImage);
     }
     if (showAnswerImageBtn) {
-        showAnswerImageBtn.classList.toggle('hidden', !state.currentQuestion.answerImage);
+        showAnswerImageBtn.classList.toggle('hidden', !q.answerImage);
         showAnswerImageBtn.disabled = !!state.showAnswerImage;
         showAnswerImageBtn.textContent = state.showAnswerImage ? '🖼 На табло' : '🖼 Картинка ответа';
     }
@@ -550,10 +563,31 @@ function setHostThumb(imgEl, src) {
     if (src) {
         imgEl.src = src;
         imgEl.classList.remove('hidden');
+        imgEl.onclick = () => openHostImagePreview(src);
     } else {
         imgEl.classList.add('hidden');
         imgEl.src = '';
+        imgEl.onclick = null;
     }
+}
+
+function openHostImagePreview(src) {
+    if (!src) return;
+    let overlay = document.getElementById('host-image-preview');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'host-image-preview';
+        overlay.className = 'host-image-preview';
+        overlay.innerHTML = '<img alt=""><button type="button" aria-label="Закрыть">×</button>';
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay || e.target.tagName === 'BUTTON') {
+                overlay.classList.remove('open');
+            }
+        });
+        document.body.appendChild(overlay);
+    }
+    overlay.querySelector('img').src = src;
+    overlay.classList.add('open');
 }
 
 function renderSidebar() {
