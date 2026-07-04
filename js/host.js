@@ -40,18 +40,26 @@ const hostQAnswerImageHint = document.getElementById('host-q-answer-image-hint')
 const showAnswerImageBtn = document.getElementById('show-answer-image-btn');
 
 function onGameDataUpdated() {
-    GameData.reload();
-    lastBoardKey = '';
-    renderRoundCards();
-    renderLobby();
-    if (state.screen === 'board' || state.screen === 'question') {
-        renderGame();
-    }
+    GameData.reloadAsync().then(() => {
+        lastBoardKey = '';
+        renderRoundCards();
+        renderLobby();
+        gameSync.pushGameData(GameData.getRounds());
+        if (state.screen === 'board' || state.screen === 'question') {
+            renderGame();
+        }
+    });
 }
 
 function init() {
     state = gameSync.load();
     setupEventListeners();
+
+    GameData.reloadAsync().then(() => {
+        lastBoardKey = '';
+        renderRoundCards();
+        if (state.screen === 'board' || state.screen === 'question') renderGame();
+    });
 
     window.addEventListener('svoyak-game-updated', onGameDataUpdated);
     window.addEventListener('storage', (e) => {
@@ -69,9 +77,17 @@ function init() {
         onReady: (_code, mode) => {
             updateHostConnectionStatus(false);
             if (firebaseBanner && mode === 'cloud') firebaseBanner.classList.add('hidden');
+            gameSync.pushGameData(GameData.getRounds());
         },
-        onDisplayConnected: () => updateHostConnectionStatus(true),
+        onDisplayConnected: () => {
+            updateHostConnectionStatus(true);
+            gameSync.pushGameData(GameData.getRounds());
+        },
         onDisplayDisconnected: () => updateHostConnectionStatus(false)
+    }).then(() => gameSync.pullGameData()).then(() => {
+        lastBoardKey = '';
+        renderRoundCards();
+        renderAll();
     }).catch((err) => {
         if (firebaseBanner) {
             firebaseBanner.classList.remove('hidden');
@@ -89,9 +105,14 @@ function updateHostConnectionStatus(ok) {
 }
 
 function saveState(full = true) {
-    gameSync.save(state);
     if (full) renderAll();
     else refreshScores();
+    gameSync.save(state);
+}
+
+function saveStateAndRenderQuestion() {
+    renderGame();
+    gameSync.save(state);
 }
 
 function refreshScores() {
@@ -243,7 +264,9 @@ function openQuestion(categoryName, q) {
         id: q.id,
         price: q.price,
         text: q.text,
-        answer: q.answer
+        answer: q.answer,
+        image: q.image || null,
+        answerImage: q.answerImage || null
     };
     state.screen = 'question';
     state.showAnswer = false;
@@ -286,8 +309,7 @@ function showAnswer() {
         state.showAnswerImage = true;
     }
     stopTimer(true);
-    gameSync.save(state);
-    renderQuestion();
+    saveStateAndRenderQuestion();
 }
 
 function showAnswerImage() {
@@ -295,8 +317,7 @@ function showAnswerImage() {
     if (!q?.answerImage) return;
     state.showAnswerImage = true;
     stopTimer(true);
-    gameSync.save(state);
-    renderQuestion();
+    saveStateAndRenderQuestion();
 }
 
 function startTimer() {

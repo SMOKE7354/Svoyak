@@ -47,14 +47,28 @@ function init() {
     setupImageLightbox();
     connectToGame();
 
-    window.addEventListener('svoyak-game-updated', () => {
-        GameData.reload();
+    GameData.reloadAsync().then(() => {
         lastBoardKey = '';
         if (connected) renderScreen(true);
     });
+
+    window.addEventListener('svoyak-game-updated', () => {
+        GameData.reloadAsync().then(() => {
+            lastBoardKey = '';
+            if (connected) renderScreen(true);
+        });
+    });
     window.addEventListener('storage', (e) => {
         if (e.key === GameData.storageKey || e.key === 'svoyak_game_data_version') {
-            GameData.reload();
+            GameData.reloadAsync().then(() => {
+                lastBoardKey = '';
+                if (connected) renderScreen(true);
+            });
+        }
+    });
+
+    gameSync.subscribeGameData((rounds) => {
+        if (GameData.applyRemoteRounds(rounds)) {
             lastBoardKey = '';
             if (connected) renderScreen(true);
         }
@@ -109,43 +123,69 @@ function setupConnectUI() {
 
 function connectToGame() {
     connectBtn.disabled = true;
-    connectStatus.textContent = 'Подключение к Firebase…';
+    connectStatus.textContent = 'Подключение…';
     connectStatus.className = 'connect-status';
 
-    if (!gameSync.isFirebaseReady()) {
-        connectBtn.disabled = false;
-        connectStatus.textContent = 'Firebase не настроен на сайте. Залейте firebase-config.js на GitHub.';
-        connectStatus.className = 'connect-status error';
-        return;
-    }
-
-    gameSync.initDisplay(gameSync.getRoomCode(), {
-        onState: (newState) => {
-            if (!connected) {
-                connected = true;
-                hideConnectScreen('cloud');
-            }
-            onStateUpdate(newState);
-        },
-        onConnected: (_code, mode) => {
-            connected = true;
-            hideConnectScreen(mode);
-        },
-        onDisconnected: () => {
-            connected = false;
-            showConnectScreen('Связь с Firebase потеряна. Обновите страницу.');
-        }
-    }).then((result) => {
+    const finishConnect = (result, mode) => {
         if (!connected) {
             connected = true;
-            hideConnectScreen(result?.mode || 'cloud');
+            hideConnectScreen(mode || result?.mode || 'local');
         }
-        connectStatus.textContent = '';
-    }).catch((err) => {
         connectBtn.disabled = false;
-        connectStatus.textContent = err.message || 'Ошибка подключения к Firebase';
-        connectStatus.className = 'connect-status error';
-    });
+        connectStatus.textContent = '';
+    };
+
+    const tryCloud = () => {
+        if (!gameSync.isFirebaseReady()) return Promise.reject(new Error('firebase-not-ready'));
+
+        return gameSync.initDisplay(gameSync.getRoomCode(), {
+            onState: (newState) => {
+                if (!connected) {
+                    connected = true;
+                    hideConnectScreen('cloud');
+                }
+                onStateUpdate(newState);
+            },
+            onConnected: (_code, mode) => {
+                connected = true;
+                hideConnectScreen(mode);
+            },
+            onDisconnected: () => {
+                connected = false;
+                showConnectScreen('Связь с Firebase потеряна. Обновите страницу.');
+            }
+        });
+    };
+
+    tryCloud()
+        .then((result) => {
+            finishConnect(result, 'cloud');
+            return result;
+        })
+        .catch(() => {
+            connectStatus.textContent = 'Firebase недоступен — подключаемся локально (2 вкладки на одном ПК)…';
+            return gameSync.initDisplay(gameSync.getRoomCode(), {
+                onState: (newState) => {
+                    if (!connected) {
+                        connected = true;
+                        hideConnectScreen('local');
+                    }
+                    onStateUpdate(newState);
+                },
+                onConnected: (_code, mode) => {
+                    connected = true;
+                    hideConnectScreen(mode);
+                }
+            }, true);
+        })
+        .then((result) => {
+            if (result) finishConnect(result, result?.mode || 'local');
+        })
+        .catch((err) => {
+            connectBtn.disabled = false;
+            connectStatus.textContent = err.message || 'Ошибка подключения';
+            connectStatus.className = 'connect-status error';
+        });
 }
 
 function hideConnectScreen(mode) {
@@ -155,6 +195,11 @@ function hideConnectScreen(mode) {
         gameSync.subscribe(onStateUpdate);
         subscribed = true;
     }
+    gameSync.pullGameData()?.then(() => {
+        lastBoardKey = '';
+        state = gameSync.load();
+        renderScreen(true);
+    });
     state = gameSync.load();
     renderScreen(true);
     updateTimerDisplay();
@@ -279,7 +324,7 @@ function showRoundAnnouncement() {
         if (roundCurtain) roundCurtain.classList.add('exit');
         setTimeout(() => {
             showingRoundSplash = false;
-            if (state.screen === 'board') renderScreen(false);
+            renderScreen(false);
         }, 850);
     }, 2200);
 }

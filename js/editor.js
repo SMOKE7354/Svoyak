@@ -40,6 +40,18 @@ function init() {
     bindGlobalActions();
     selectRound(1);
 
+    if (typeof gameSync !== 'undefined' && gameSync.pullGameData) {
+        gameSync.pullGameData().then((remote) => {
+            if (remote?.length) {
+                rounds = deepClone(GameData.getRounds());
+                renderRoundTabs();
+                renderCategoryList();
+                if (activeCategoryIndex >= 0) renderCategoryEditor();
+                updateStatusLine();
+            }
+        });
+    }
+
     window.addEventListener('svoyak-game-updated', reloadFromStorage);
     window.addEventListener('storage', (e) => {
         if (e.key === GameData.storageKey || e.key === 'svoyak_game_data_version') {
@@ -54,8 +66,15 @@ function deepClone(obj) {
 
 function updateStatusLine() {
     const custom = GameData.isCustom();
+    const embedded = countEmbeddedImages(rounds);
+    if (embedded > 0) {
+        editorStatus.textContent = `⚠ ${embedded} встроенных картинок — «Сохранить» или «В Firebase»`;
+        editorStatus.classList.add('status-warn');
+        return;
+    }
+    editorStatus.classList.remove('status-warn');
     editorStatus.textContent = custom
-        ? 'Используется ваша игра (сохранена локально)'
+        ? 'Ваша игра — картинки в папке images/'
         : 'Стандартная игра — изменения сохранятся локально';
 }
 
@@ -85,6 +104,7 @@ function showToast(msg, isError = false) {
 function bindGlobalActions() {
     document.getElementById('btn-save').addEventListener('click', saveToGame);
     document.getElementById('btn-reset').addEventListener('click', resetToDefault);
+    document.getElementById('btn-export-images').addEventListener('click', exportEmbeddedImagesToFolder);
     document.getElementById('btn-export').addEventListener('click', exportJson);
     document.getElementById('import-file').addEventListener('change', importJson);
     document.getElementById('btn-add-category').addEventListener('click', addCategory);
@@ -128,14 +148,27 @@ function bindGlobalActions() {
 
 function saveToGame() {
     syncFormToData();
+    const saveBtn = document.getElementById('btn-save');
     try {
         validateRounds(rounds);
-        GameData.save(rounds);
-        dirty = false;
-        updateStatusLine();
-        showToast('Сохранено! Обновите панель ведущего (F5)');
+        saveBtn.disabled = true;
+        editorStatus.textContent = 'Сохранение…';
+
+        GameData.save(rounds, (msg) => {
+            editorStatus.textContent = msg;
+        }).then(() => {
+            dirty = false;
+            updateStatusLine();
+            showToast('Сохранено! Вопросы и картинки отправлены в Firebase');
+        }).catch((err) => {
+            showToast(err.message, true);
+            updateStatusLine();
+        }).finally(() => {
+            saveBtn.disabled = false;
+        });
     } catch (err) {
         showToast(err.message, true);
+        saveBtn.disabled = false;
     }
 }
 
@@ -297,12 +330,12 @@ function syncFormToData() {
         q.price = parseInt(card.querySelector('[data-field="price"]')?.value, 10) || q.price;
         q.text = card.querySelector('[data-field="text"]')?.value || '';
         q.answer = card.querySelector('[data-field="answer"]')?.value || '';
-        const img = card.querySelector('[data-field="image"]')?.value?.trim();
-        if (img) q.image = img;
-        else delete q.image;
-        const answerImg = card.querySelector('[data-field="answerImage"]')?.value?.trim();
-        if (answerImg) q.answerImage = answerImg;
-        else delete q.answerImage;
+        const imgInput = card.querySelector('[data-field="image"]')?.value?.trim();
+        if (imgInput) q.image = isDataUrl(imgInput) ? imgInput : normalizeImagePath(imgInput);
+        else if (!isDataUrl(q.image)) delete q.image;
+        const answerImgInput = card.querySelector('[data-field="answerImage"]')?.value?.trim();
+        if (answerImgInput) q.answerImage = isDataUrl(answerImgInput) ? answerImgInput : normalizeImagePath(answerImgInput);
+        else if (!isDataUrl(q.answerImage)) delete q.answerImage;
     });
 }
 
@@ -422,16 +455,18 @@ function renderQuestionCard(q, index, round) {
 }
 
 function renderImageField(field, label, value, index, isAnswer = false) {
-    const imgPreview = value
-        ? `<div class="image-preview-wrap"><img class="image-preview" src="${escapeAttr(value)}" alt=""></div>`
-        : '';
+    const previewSrc = value ? (isDataUrl(value) ? value : resolveImageSrc(value)) : '';
+    const imgPreview = previewSrc
+        ? `<div class="image-preview-wrap"><img class="image-preview" src="${escapeAttr(previewSrc)}" alt=""></div>`
+        : (isDataUrl(value) ? '<p class="image-embed-warn">⚠ Картинка встроена в браузер — нажмите «Вынести в images»</p>' : '');
 
     return `
         <div class="image-row ${isAnswer ? 'image-row-answer' : ''}">
             <div class="image-field">
                 <label class="field-label">${label}</label>
-                <input type="text" class="ed-input" data-field="${field}" value="${escapeAttr(value || '')}" placeholder="https://… или загрузите файл">
+                <input type="text" class="ed-input" data-field="${field}" value="${escapeAttr(isDataUrl(value) ? '' : (value || ''))}" placeholder="загрузите файл или images/photo.jpg">
                 ${imgPreview}
+                <p class="image-path-hint">При Firebase — загрузка в облако автоматически. Или положите файл в <code>images/</code> на Render.</p>
             </div>
             <label class="image-upload-label">
                 📷 Загрузить
@@ -463,36 +498,138 @@ function updateImagePreview(input) {
     if (!container) return;
     let wrap = container.querySelector('.image-preview-wrap');
     const url = input.value.trim();
-    if (!url) {
+    container.querySelector('.image-embed-warn')?.remove();
+    if (!url || isDataUrl(url)) {
         wrap?.remove();
         return;
     }
+    const src = resolveImageSrc(url);
     if (!wrap) {
         wrap = document.createElement('div');
         wrap.className = 'image-preview-wrap';
-        container.appendChild(wrap);
+        container.insertBefore(wrap, container.querySelector('.image-path-hint'));
     }
-    wrap.innerHTML = `<img class="image-preview" src="${escapeAttr(url)}" alt="">`;
+    wrap.innerHTML = `<img class="image-preview" src="${escapeAttr(src)}" alt="">`;
+}
+
+function downloadBlobAsFile(blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function dataUrlToBlob(dataUrl) {
+    const [header, data] = dataUrl.split(',');
+    const mime = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function exportEmbeddedImagesToFolder() {
+    syncFormToData();
+    const embedded = countEmbeddedImages(rounds);
+    if (!embedded) {
+        showToast('Встроенных картинок нет — всё уже в Firebase или images/');
+        return;
+    }
+
+    if (FirebaseMedia.isReady()) {
+        if (!confirm(`Загрузить ${embedded} встроенных картинок в Firebase Storage?`)) return;
+        editorStatus.textContent = 'Загрузка в Firebase…';
+        try {
+            const result = await FirebaseMedia.uploadEmbeddedImagesInRounds(rounds, (msg) => {
+                editorStatus.textContent = msg;
+            });
+            rounds = result.rounds;
+            markDirty();
+            updateStatusLine();
+            renderCategoryEditor();
+            showToast(`Загружено ${result.uploaded} картинок — нажмите «Сохранить в игру»`);
+        } catch (err) {
+            showToast(err.message, true);
+            updateStatusLine();
+        }
+        return;
+    }
+
+    if (!confirm(`Скачать ${embedded} файлов и заменить встроенные картинки путями images/…?`)) return;
+
+    let exported = 0;
+    for (const r of rounds) {
+        for (let ci = 0; ci < r.categories.length; ci++) {
+            const cat = r.categories[ci];
+            for (let qi = 0; qi < cat.questions.length; qi++) {
+                const q = cat.questions[qi];
+                for (const field of ['image', 'answerImage']) {
+                    if (!isDataUrl(q[field])) continue;
+                    const path = buildImagePath(r.id, ci, qi, field, `${field}.jpg`);
+                    const filename = path.replace(`${IMAGES_FOLDER}/`, '');
+                    downloadBlobAsFile(dataUrlToBlob(q[field]), filename);
+                    q[field] = path;
+                    exported++;
+                    await delay(350);
+                }
+            }
+        }
+    }
+
+    markDirty();
+    updateStatusLine();
+    renderCategoryEditor();
+    showToast(`Скачано ${exported} файлов — положите их в папку images/ и нажмите «Сохранить в игру»`);
 }
 
 function handleImageUpload(e, cat) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 800000) {
-        showToast('Картинка слишком большая (макс. ~800 КБ)', true);
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('Картинка слишком большая (макс. 5 МБ)', true);
         return;
     }
+
     const index = parseInt(e.target.dataset.uploadIndex, 10);
     const field = e.target.dataset.uploadField || 'image';
-    const reader = new FileReader();
-    reader.onload = () => {
-        cat.questions[index][field] = reader.result;
-        markDirty();
-        renderCategoryEditor();
-        showToast(field === 'answerImage' ? 'Картинка к ответу добавлена' : 'Картинка добавлена');
-    };
-    reader.readAsDataURL(file);
+    const round = getActiveRound();
+    if (!round || activeCategoryIndex < 0) return;
+
+    const path = buildImagePath(round.id, activeCategoryIndex, index, field, file.name);
+    const storagePath = FirebaseMedia.storagePathFor(round.id, activeCategoryIndex, index, field, file.name);
+
     e.target.value = '';
+
+    if (FirebaseMedia.isReady()) {
+        editorStatus.textContent = 'Загрузка картинки в Firebase…';
+        FirebaseMedia.uploadFile(file, storagePath)
+            .then((url) => {
+                cat.questions[index][field] = url;
+                markDirty();
+                renderCategoryEditor();
+                updateStatusLine();
+                showToast('Картинка загружена в Firebase');
+            })
+            .catch((err) => {
+                showToast(err.message, true);
+                updateStatusLine();
+            });
+        return;
+    }
+
+    const filename = path.replace(`${IMAGES_FOLDER}/`, '');
+    downloadBlobAsFile(file, filename);
+    cat.questions[index][field] = path;
+    markDirty();
+    renderCategoryEditor();
+    showToast(`Firebase недоступен — сохраните файл в папку images/${filename}`);
 }
 
 function addCategory() {

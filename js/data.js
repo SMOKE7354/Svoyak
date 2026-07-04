@@ -208,23 +208,146 @@ const DEFAULT_GAME_ROUNDS = [
 const CUSTOM_GAME_STORAGE_KEY = 'svoyak_custom_game';
 const GAME_DATA_VERSION_KEY = 'svoyak_game_data_version';
 const GAME_DATA_VERSION = 'adult-v2-2026';
+const IMAGES_FOLDER = 'images';
+const GAME_DATA_IDB_NAME = 'svoyak-game-db';
+const GAME_DATA_IDB_STORE = 'rounds';
 
 function cloneRounds(rounds) {
     return JSON.parse(JSON.stringify(rounds));
 }
 
-function persistRounds(rounds) {
-    localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
-    localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(rounds));
+function isDataUrl(value) {
+    return typeof value === 'string' && value.startsWith('data:');
 }
 
-function loadGameRounds() {
+function getImageExtension(filename) {
+    const ext = (String(filename).match(/\.(\w+)$/)?.[1] || 'jpg').toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext) ? ext : 'jpg';
+}
+
+function buildImagePath(roundId, catIndex, qIndex, field, originalFilename) {
+    const ext = getImageExtension(originalFilename);
+    const suffix = field === 'answerImage' ? 'answer' : 'question';
+    return `${IMAGES_FOLDER}/r${roundId}-c${catIndex + 1}-q${qIndex + 1}-${suffix}.${ext}`;
+}
+
+function normalizeImagePath(value) {
+    if (!value || typeof value !== 'string') return '';
+    const trimmed = value.trim();
+    if (!trimmed || isDataUrl(trimmed) || /^https?:\/\//i.test(trimmed)) return trimmed;
+    const clean = trimmed.replace(/^\/+/, '');
+    if (clean.startsWith(`${IMAGES_FOLDER}/`)) return clean;
+    return `${IMAGES_FOLDER}/${clean}`;
+}
+
+function resolveImageSrc(value) {
+    if (!value || typeof value !== 'string') return '';
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (isDataUrl(trimmed) || /^https?:\/\//i.test(trimmed)) return trimmed;
+    return normalizeImagePath(trimmed);
+}
+
+function countEmbeddedImages(rounds) {
+    let count = 0;
+    rounds.forEach(r => {
+        r.categories?.forEach(cat => {
+            cat.questions?.forEach(q => {
+                if (isDataUrl(q.image)) count++;
+                if (isDataUrl(q.answerImage)) count++;
+            });
+        });
+    });
+    return count;
+}
+
+function sanitizeRoundsForStorage(rounds) {
+    const clean = cloneRounds(rounds);
+    clean.forEach(r => {
+        r.categories?.forEach(cat => {
+            cat.questions?.forEach(q => {
+                if (q.image) {
+                    if (isDataUrl(q.image)) delete q.image;
+                    else q.image = normalizeImagePath(q.image);
+                }
+                if (q.answerImage) {
+                    if (isDataUrl(q.answerImage)) delete q.answerImage;
+                    else q.answerImage = normalizeImagePath(q.answerImage);
+                }
+            });
+        });
+    });
+    return clean;
+}
+
+function validateNoEmbeddedImages(rounds) {
+    const count = countEmbeddedImages(rounds);
+    if (count > 0) {
+        throw new Error(
+            `В игре ${count} встроенных картинок (base64) — из‑за них перестают открываться вопросы. ` +
+            'Нажмите «Вынести в папку images» в редакторе или загрузите фото заново.'
+        );
+    }
+}
+
+function openGameDataDb() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(GAME_DATA_IDB_NAME, 1);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(GAME_DATA_IDB_STORE)) {
+                db.createObjectStore(GAME_DATA_IDB_STORE);
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function idbSaveRounds(rounds) {
+    return openGameDataDb().then(db => new Promise((resolve, reject) => {
+        const tx = db.transaction(GAME_DATA_IDB_STORE, 'readwrite');
+        tx.objectStore(GAME_DATA_IDB_STORE).put(rounds, CUSTOM_GAME_STORAGE_KEY);
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+    }));
+}
+
+function idbLoadRounds() {
+    return openGameDataDb().then(db => new Promise((resolve, reject) => {
+        const tx = db.transaction(GAME_DATA_IDB_STORE, 'readonly');
+        const req = tx.objectStore(GAME_DATA_IDB_STORE).get(CUSTOM_GAME_STORAGE_KEY);
+        req.onsuccess = () => { db.close(); resolve(req.result || null); };
+        req.onerror = () => { db.close(); reject(req.error); };
+    })).catch(() => null);
+}
+
+function persistRounds(rounds) {
+    localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
+    const json = JSON.stringify(rounds);
+    try {
+        localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, json);
+        return { ok: true, storage: 'local' };
+    } catch (err) {
+        if (err?.name === 'QuotaExceededError' || err?.code === 22) {
+            return idbSaveRounds(rounds)
+                .then(() => {
+                    try { localStorage.removeItem(CUSTOM_GAME_STORAGE_KEY); } catch { /* ignore */ }
+                    return { ok: true, storage: 'indexeddb' };
+                })
+                .catch(() => {
+                    throw new Error('Недостаточно места для картинок. Уменьшите размер изображений или используйте ссылки (URL).');
+                });
+        }
+        throw err;
+    }
+}
+
+function loadGameRoundsFromLocal() {
     const storedVersion = localStorage.getItem(GAME_DATA_VERSION_KEY);
 
     if (storedVersion !== GAME_DATA_VERSION) {
-        const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
-        persistRounds(fresh);
-        return fresh;
+        return null;
     }
 
     try {
@@ -233,10 +356,38 @@ function loadGameRounds() {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
-    } catch { /* use default */ }
+    } catch { /* try IndexedDB */ }
+
+    return null;
+}
+
+async function loadGameRoundsAsync() {
+    const fromLocal = loadGameRoundsFromLocal();
+    if (fromLocal) return fromLocal;
+
+    const fromIdb = await idbLoadRounds();
+    if (Array.isArray(fromIdb) && fromIdb.length > 0) {
+        localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
+        return fromIdb;
+    }
+
+    return null;
+}
+
+function loadGameRounds() {
+    const storedVersion = localStorage.getItem(GAME_DATA_VERSION_KEY);
+
+    if (storedVersion !== GAME_DATA_VERSION) {
+        const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
+        try { persistRounds(fresh); } catch { /* ignore on init */ }
+        return fresh;
+    }
+
+    const fromLocal = loadGameRoundsFromLocal();
+    if (fromLocal) return fromLocal;
 
     const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
-    persistRounds(fresh);
+    try { persistRounds(fresh); } catch { /* ignore on init */ }
     return fresh;
 }
 
@@ -249,21 +400,76 @@ const GameData = {
         return gameRounds;
     },
 
-    save(rounds) {
-        persistRounds(rounds);
+    async save(rounds, onProgress) {
+        let cleaned = cloneRounds(rounds);
+        if (countEmbeddedImages(cleaned) > 0) {
+            if (typeof FirebaseMedia !== 'undefined' && FirebaseMedia.isReady()) {
+                const result = await FirebaseMedia.uploadEmbeddedImagesInRounds(cleaned, onProgress);
+                cleaned = result.rounds;
+            } else {
+                validateNoEmbeddedImages(cleaned);
+            }
+        }
+        cleaned = sanitizeRoundsForStorage(cleaned);
+        const result = await Promise.resolve(persistRounds(cleaned));
+        gameRounds = cleaned;
+        window.dispatchEvent(new CustomEvent('svoyak-game-updated', { detail: result }));
+        if (typeof gameSync !== 'undefined' && gameSync.pushGameData) {
+            gameSync.pushGameData(cleaned);
+        }
+        return result;
+    },
+
+    saveSync(rounds) {
+        const json = JSON.stringify(rounds);
+        localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
+        localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, json);
         gameRounds = rounds;
         window.dispatchEvent(new CustomEvent('svoyak-game-updated'));
+        if (typeof gameSync !== 'undefined' && gameSync.pushGameData) {
+            gameSync.pushGameData(rounds);
+        }
     },
 
     resetToDefault() {
         const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
-        persistRounds(fresh);
+        try {
+            localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
+            localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(fresh));
+        } catch { /* ignore */ }
+        idbSaveRounds(fresh).catch(() => {});
         gameRounds = fresh;
         window.dispatchEvent(new CustomEvent('svoyak-game-updated'));
+        if (typeof gameSync !== 'undefined' && gameSync.pushGameData) {
+            gameSync.pushGameData(fresh);
+        }
     },
 
     reload() {
         gameRounds = loadGameRounds();
+    },
+
+    async reloadAsync() {
+        const loaded = await loadGameRoundsAsync();
+        if (loaded) {
+            gameRounds = loaded;
+            return true;
+        }
+        gameRounds = loadGameRounds();
+        return false;
+    },
+
+    applyRemoteRounds(rounds) {
+        if (!Array.isArray(rounds) || !rounds.length) return false;
+        gameRounds = rounds;
+        try {
+            localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
+            localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(rounds));
+        } catch {
+            idbSaveRounds(rounds).catch(() => {});
+        }
+        window.dispatchEvent(new CustomEvent('svoyak-game-updated'));
+        return true;
     },
 
     exportJson() {
@@ -294,8 +500,8 @@ function resolveQuestionMedia(roundId, questionRef) {
         ...questionRef,
         text: questionRef.text ?? fromBoard?.text ?? '',
         answer: questionRef.answer ?? fromBoard?.answer ?? '',
-        image: fromBoard?.image ?? questionRef.image,
-        answerImage: fromBoard?.answerImage ?? questionRef.answerImage
+        image: resolveImageSrc(questionRef.image) || resolveImageSrc(fromBoard?.image),
+        answerImage: resolveImageSrc(questionRef.answerImage) || resolveImageSrc(fromBoard?.answerImage)
     };
 }
 
