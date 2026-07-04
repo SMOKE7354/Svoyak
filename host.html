@@ -135,11 +135,14 @@
                     <div class="question-cards">
                         <div class="question-card">
                             <span class="card-label">Вопрос</span>
+                            <img id="host-q-image" class="host-q-thumb hidden" src="" alt="">
                             <p id="host-q-text">…</p>
                         </div>
                         <div class="answer-card">
                             <span class="card-label">Ответ</span>
                             <p id="host-q-answer">…</p>
+                            <img id="host-q-answer-image" class="host-q-thumb hidden" src="" alt="">
+                            <p id="host-q-answer-image-hint" class="host-q-image-hint hidden">На TV — при «Показать ответ»</p>
                         </div>
                     </div>
 
@@ -162,13 +165,14 @@
                         </div>
                         <div class="control-group control-group-actions">
                             <button class="host-btn host-btn-success" id="show-answer-btn" type="button">Показать ответ</button>
+                            <button class="host-btn host-btn-gold hidden" id="show-answer-image-btn" type="button" title="Показать картинку ответа на TV">🖼 Картинка ответа</button>
                             <button class="host-btn host-btn-ghost" id="nobody-answered-btn" type="button">Никто не ответил</button>
                             <button class="host-btn host-btn-outline" id="close-question-btn" type="button">← На табло</button>
                         </div>
                     </div>
 
                     <div class="hotkeys-hint">
-                        <kbd>Space</kbd> таймер · <kbd>A</kbd> ответ · <kbd>Esc</kbd> табло · <kbd>1–9</kbd> верно · <kbd>Shift+1–9</kbd> ошибка
+                        <kbd>Space</kbd> таймер · <kbd>A</kbd> ответ · <kbd>I</kbd> картинка ответа · <kbd>Esc</kbd> табло · <kbd>1–9</kbd> верно · <kbd>Shift+1–9</kbd> ошибка
                     </div>
                 </div>
             </main>
@@ -177,9 +181,9 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-    <script src="js/firebase-config.js?v=9"></script>
-    <script src="js/data.js?v=9"></script>
-    <script src="js/sync.js?v=9"></script>
-    <script src="js/host.js?v=9"></script>
+    <script src="js/firebase-config.js?v=10"></script>
+    <script src="js/data.js?v=10"></script>
+    <script src="js/sync.js?v=10"></script>
+    <script src="js/host.js?v=10"></script>
 </body>
 </html>
