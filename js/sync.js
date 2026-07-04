@@ -1,6 +1,17 @@
 const STORAGE_KEY = 'gameState';
 const ROOM_CODE = 'SVOYAK';
 
+function slimCurrentQuestion(question) {
+    if (!question || typeof question !== 'object') return null;
+    return {
+        id: question.id,
+        categoryName: question.categoryName,
+        price: question.price,
+        text: question.text,
+        answer: question.answer
+    };
+}
+
 function createInitialState() {
     return {
         screen: 'lobby',
@@ -25,7 +36,9 @@ function normalizeState(raw) {
         ...base,
         ...raw,
         players: Array.isArray(raw.players) ? raw.players : [],
-        playedQuestions: Array.isArray(raw.playedQuestions) ? raw.playedQuestions : []
+        playedQuestions: Array.isArray(raw.playedQuestions) ? raw.playedQuestions : [],
+        currentQuestion: slimCurrentQuestion(raw.currentQuestion),
+        showAnswerImage: !!raw.showAnswerImage
     };
 }
 
@@ -63,7 +76,16 @@ const gameSync = {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
             try {
-                return normalizeState(JSON.parse(saved));
+                const raw = JSON.parse(saved);
+                const normalized = normalizeState(raw);
+                if (raw?.currentQuestion?.image || raw?.currentQuestion?.answerImage) {
+                    try {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+                    } catch (err) {
+                        console.warn('Не удалось очистить старое состояние игры:', err);
+                    }
+                }
+                return normalized;
             } catch {
                 return createInitialState();
             }
@@ -73,7 +95,12 @@ const gameSync = {
 
     save(state, notifyLocal = true) {
         state = normalizeState(state);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (err) {
+            console.warn('Не удалось сохранить состояние игры:', err);
+        }
 
         if (this.syncMode === 'cloud' && this.mode === 'host' && this._stateRef) {
             this._stateRef.set(state).catch((err) => {
