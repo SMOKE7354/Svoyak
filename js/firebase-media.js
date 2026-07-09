@@ -32,14 +32,33 @@ const FirebaseMedia = {
         return `games/${room}/r${roundId}-c${catIndex + 1}-q${qIndex + 1}-${suffix}.${ext}`;
     },
 
+    storageErrorMessage(err) {
+        const code = err?.code || '';
+        const msg = err?.message || String(err);
+        if (code.includes('storage/unauthorized') || msg.includes('PERMISSION_DENIED') || msg.includes('permission')) {
+            return 'Firebase Storage: нет доступа. В консоли Firebase → Storage → Rules добавьте: allow read, write: if true;';
+        }
+        if (code.includes('storage/canceled')) {
+            return 'Загрузка отменена';
+        }
+        if (code.includes('storage/quota-exceeded')) {
+            return 'Превышен лимит Firebase Storage';
+        }
+        return 'Ошибка загрузки: ' + msg;
+    },
+
     async uploadFile(file, storagePath) {
         const storage = this._getStorage();
         if (!storage) {
             throw new Error('Firebase Storage недоступен. Проверьте firebase-config.js и правила Storage.');
         }
         const ref = storage.ref(storagePath);
-        const snap = await ref.put(file, { contentType: file.type || 'image/jpeg' });
-        return snap.ref.getDownloadURL();
+        try {
+            const snap = await ref.put(file, { contentType: file.type || 'image/jpeg' });
+            return snap.ref.getDownloadURL();
+        } catch (err) {
+            throw new Error(this.storageErrorMessage(err));
+        }
     },
 
     async uploadDataUrl(dataUrl, storagePath) {

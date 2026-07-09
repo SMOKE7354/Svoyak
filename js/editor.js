@@ -149,7 +149,7 @@ function showToast(msg, isError = false) {
 
 function bindGlobalActions() {
     document.getElementById('btn-save').addEventListener('click', saveToGame);
-    document.getElementById('btn-reset').addEventListener('click', resetToDefault);
+    document.getElementById('btn-reset').addEventListener('click', resetToBlank);
     document.getElementById('btn-export-images').addEventListener('click', exportEmbeddedImagesToFolder);
     document.getElementById('btn-export').addEventListener('click', exportJson);
     document.getElementById('import-file').addEventListener('change', importJson);
@@ -221,9 +221,9 @@ function saveToGame() {
     }
 }
 
-function resetToDefault() {
-    if (!confirm('Вернуть стандартные вопросы? Ваша версия будет удалена.')) return;
-    GameData.resetToDefault();
+function resetToBlank() {
+    if (!confirm('Удалить все темы, вопросы и ответы? Останется один пустой раунд.')) return;
+    GameData.resetToBlank();
     rounds = deepClone(GameData.getRounds());
     dirty = false;
     activeCategoryIndex = -1;
@@ -231,7 +231,7 @@ function resetToDefault() {
     renderRoundTabs();
     renderCategoryList();
     showEditorEmpty();
-    showToast('Восстановлена стандартная игра');
+    showToast('Все темы и вопросы очищены');
 }
 
 function exportJson() {
@@ -381,11 +381,17 @@ function syncFormToData() {
         q.text = card.querySelector('[data-field="text"]')?.value || '';
         q.answer = card.querySelector('[data-field="answer"]')?.value || '';
         const imgInput = card.querySelector('[data-field="image"]')?.value?.trim();
-        if (imgInput) q.image = isDataUrl(imgInput) ? imgInput : normalizeImagePath(imgInput);
-        else if (!isDataUrl(q.image)) delete q.image;
+        if (imgInput) {
+            q.image = isDataUrl(imgInput) ? imgInput : normalizeImagePath(imgInput);
+        } else if (!q.image || (!isDataUrl(q.image) && !/^https?:\/\//i.test(q.image))) {
+            delete q.image;
+        }
         const answerImgInput = card.querySelector('[data-field="answerImage"]')?.value?.trim();
-        if (answerImgInput) q.answerImage = isDataUrl(answerImgInput) ? answerImgInput : normalizeImagePath(answerImgInput);
-        else if (!isDataUrl(q.answerImage)) delete q.answerImage;
+        if (answerImgInput) {
+            q.answerImage = isDataUrl(answerImgInput) ? answerImgInput : normalizeImagePath(answerImgInput);
+        } else if (!q.answerImage || (!isDataUrl(q.answerImage) && !/^https?:\/\//i.test(q.answerImage))) {
+            delete q.answerImage;
+        }
     });
 }
 
@@ -508,7 +514,7 @@ function renderImageField(field, label, value, index, isAnswer = false) {
     const previewSrc = value ? (isDataUrl(value) ? value : resolveImageSrc(value)) : '';
     const imgPreview = previewSrc
         ? `<div class="image-preview-wrap"><img class="image-preview" src="${escapeAttr(previewSrc)}" alt=""></div>`
-        : (isDataUrl(value) ? '<p class="image-embed-warn">⚠ Картинка встроена в браузер — нажмите «Вынести в images»</p>' : '');
+        : (isDataUrl(value) ? '<p class="image-embed-warn">⚠ Картинка сохранена локально — для облака нажмите «В Firebase»</p>' : '');
 
     return `
         <div class="image-row ${isAnswer ? 'image-row-answer' : ''}">
@@ -641,7 +647,24 @@ async function exportEmbeddedImagesToFolder() {
     showToast(`Скачано ${exported} файлов — положите их в папку images/`);
 }
 
-function handleImageUpload(e, cat) {
+function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function applyUploadedImage(cat, index, field, value) {
+    cat.questions[index][field] = value;
+    markDirty();
+    renderCategoryEditor();
+    updateStatusLine();
+    flushAutoSaveSync();
+}
+
+async function handleImageUpload(e, cat) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -654,34 +677,32 @@ function handleImageUpload(e, cat) {
     const round = getActiveRound();
     if (!round || activeCategoryIndex < 0) return;
 
-    const path = buildImagePath(round.id, activeCategoryIndex, index, field, file.name);
     const storagePath = FirebaseMedia.storagePathFor(round.id, activeCategoryIndex, index, field, file.name);
 
     e.target.value = '';
 
     if (FirebaseMedia.isReady()) {
-        editorStatus.textContent = 'Загрузка картинки в Firebase…';
-        FirebaseMedia.uploadFile(file, storagePath)
-            .then((url) => {
-                cat.questions[index][field] = url;
-                markDirty();
-                renderCategoryEditor();
-                updateStatusLine();
-                showToast('Картинка загружена в Firebase');
-            })
-            .catch((err) => {
-                showToast(err.message, true);
-                updateStatusLine();
-            });
-        return;
+        editorStatus.textContent = 'Загрузка картинки…';
+        try {
+            const url = await FirebaseMedia.uploadFile(file, storagePath);
+            applyUploadedImage(cat, index, field, url);
+            showToast('Картинка загружена в Firebase');
+            return;
+        } catch (err) {
+            console.warn('Firebase upload failed, saving locally:', err);
+            showToast(err.message + ' — сохраняем локально', true);
+        }
     }
 
-    const filename = path.replace(`${IMAGES_FOLDER}/`, '');
-    downloadBlobAsFile(file, filename);
-    cat.questions[index][field] = path;
-    markDirty();
-    renderCategoryEditor();
-    showToast(`Firebase недоступен — сохраните файл в папку images/${filename}`);
+    try {
+        editorStatus.textContent = 'Сохранение картинки…';
+        const dataUrl = await readFileAsDataUrl(file);
+        applyUploadedImage(cat, index, field, dataUrl);
+        showToast('Картинка сохранена');
+    } catch (err) {
+        showToast(err.message, true);
+        updateStatusLine();
+    }
 }
 
 function addCategory() {
