@@ -69,6 +69,14 @@
     color: #ffb347;
 }
 
+.editor-status.status-saving {
+    color: #8ec8ff;
+}
+
+.editor-status.status-saved {
+    color: #6ee7a0;
+}
+
 .image-path-hint {
     margin: 0.35rem 0 0;
     font-size: 0.7rem;
