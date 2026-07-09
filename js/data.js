@@ -420,6 +420,27 @@ const GameData = {
         return result;
     },
 
+    saveDraft(rounds) {
+        const draft = cloneRounds(rounds);
+        return Promise.resolve(persistRounds(draft)).then((result) => {
+            gameRounds = draft;
+            return result;
+        });
+    },
+
+    saveDraftSync(rounds) {
+        const draft = cloneRounds(rounds);
+        try {
+            localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);
+            localStorage.setItem(CUSTOM_GAME_STORAGE_KEY, JSON.stringify(draft));
+        } catch (err) {
+            if (err?.name === 'QuotaExceededError' || err?.code === 22) {
+                idbSaveRounds(draft).catch(() => {});
+            }
+        }
+        gameRounds = draft;
+    },
+
     saveSync(rounds) {
         const json = JSON.stringify(rounds);
         localStorage.setItem(GAME_DATA_VERSION_KEY, GAME_DATA_VERSION);

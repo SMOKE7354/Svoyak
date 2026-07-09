@@ -1,9 +1,14 @@
-/** Редактор — локальное сохранение через GameData (localStorage) */
+/** Редактор — автосохранение через GameData (localStorage) */
 
 let rounds = [];
 let activeRoundId = 1;
 let activeCategoryIndex = -1;
 let dirty = false;
+let saveInProgress = false;
+let autoSaveTimer = null;
+let firebaseSyncTimer = null;
+const AUTO_SAVE_MS = 350;
+const FIREBASE_SYNC_MS = 1200;
 
 const roundTabs = document.getElementById('round-tabs');
 const categoryList = document.getElementById('category-list');
@@ -17,65 +22,53 @@ const questionsList = document.getElementById('questions-list');
 const editorStatus = document.getElementById('editor-status');
 const toast = document.getElementById('toast');
 
-function reloadFromStorage() {
-    GameData.reload();
-    rounds = deepClone(GameData.getRounds());
-    dirty = false;
-    updateStatusLine();
-    renderRoundTabs();
-    renderCategoryList();
-    const round = getActiveRound();
-    if (round && activeCategoryIndex >= 0 && round.categories[activeCategoryIndex]) {
-        renderCategoryEditor();
-    } else {
-        showEditorEmpty();
-    }
-}
+async function init() {
+    const hasLocal = await GameData.reloadAsync();
 
-function init() {
+    if (!hasLocal && typeof gameSync !== 'undefined' && gameSync.pullGameData) {
+        await gameSync.pullGameData();
+    }
+
     rounds = deepClone(GameData.getRounds());
     updateStatusLine();
     renderRoundTabs();
     renderCategoryList();
     bindGlobalActions();
     selectRound(1);
-
-    if (typeof gameSync !== 'undefined' && gameSync.pullGameData) {
-        gameSync.pullGameData().then((remote) => {
-            if (remote?.length) {
-                rounds = deepClone(GameData.getRounds());
-                renderRoundTabs();
-                renderCategoryList();
-                if (activeCategoryIndex >= 0) renderCategoryEditor();
-                updateStatusLine();
-            }
-        });
-    }
-
-    window.addEventListener('svoyak-game-updated', reloadFromStorage);
-    window.addEventListener('storage', (e) => {
-        if (e.key === GameData.storageKey || e.key === 'svoyak_game_data_version') {
-            reloadFromStorage();
-        }
-    });
 }
 
 function deepClone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-function updateStatusLine() {
+function updateStatusLine(mode) {
     const custom = GameData.isCustom();
     const embedded = countEmbeddedImages(rounds);
+
+    editorStatus.classList.remove('status-warn', 'status-saving', 'status-saved');
+
+    if (mode === 'saving') {
+        editorStatus.textContent = 'Сохранение…';
+        editorStatus.classList.add('status-saving');
+        return;
+    }
+    if (mode === 'saved') {
+        editorStatus.textContent = custom ? 'Сохранено — ваша игра' : 'Сохранено';
+        editorStatus.classList.add('status-saved');
+        if (embedded > 0) {
+            editorStatus.textContent += ` · ⚠ ${embedded} встроенных картинок`;
+            editorStatus.classList.add('status-warn');
+        }
+        return;
+    }
     if (embedded > 0) {
         editorStatus.textContent = `⚠ ${embedded} встроенных картинок — «Сохранить» или «В Firebase»`;
         editorStatus.classList.add('status-warn');
         return;
     }
-    editorStatus.classList.remove('status-warn');
     editorStatus.textContent = custom
-        ? 'Ваша игра — картинки в папке images/'
-        : 'Стандартная игра — изменения сохранятся локально';
+        ? 'Ваша игра — изменения сохраняются автоматически'
+        : 'Стандартная игра — изменения сохраняются автоматически';
 }
 
 function getActiveRound() {
@@ -90,7 +83,60 @@ function getActiveCategory() {
 
 function markDirty() {
     dirty = true;
-    editorStatus.textContent = 'Есть несохранённые изменения';
+    scheduleAutoSave();
+}
+
+function scheduleAutoSave() {
+    updateStatusLine('saving');
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+        autoSaveTimer = null;
+        autoSave();
+    }, AUTO_SAVE_MS);
+}
+
+function scheduleFirebaseSync() {
+    clearTimeout(firebaseSyncTimer);
+    firebaseSyncTimer = setTimeout(() => {
+        firebaseSyncTimer = null;
+        if (typeof gameSync !== 'undefined' && gameSync.pushGameData) {
+            gameSync.pushGameData(GameData.getRounds());
+        }
+    }, FIREBASE_SYNC_MS);
+}
+
+async function autoSave() {
+    if (saveInProgress) {
+        scheduleAutoSave();
+        return;
+    }
+
+    syncFormToData();
+    saveInProgress = true;
+    try {
+        await GameData.saveDraft(rounds);
+        dirty = false;
+        updateStatusLine('saved');
+        scheduleFirebaseSync();
+    } catch (err) {
+        dirty = true;
+        editorStatus.textContent = 'Ошибка сохранения: ' + err.message;
+        editorStatus.classList.add('status-warn');
+    } finally {
+        saveInProgress = false;
+    }
+}
+
+function flushAutoSaveSync() {
+    if (!dirty && !autoSaveTimer) return;
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+    syncFormToData();
+    GameData.saveDraftSync(rounds);
+    dirty = false;
+    if (typeof gameSync !== 'undefined' && gameSync.pushGameData) {
+        gameSync.pushGameData(GameData.getRounds());
+    }
 }
 
 function showToast(msg, isError = false) {
@@ -138,27 +184,30 @@ function bindGlobalActions() {
         }
     });
 
-    window.addEventListener('beforeunload', (e) => {
-        if (dirty) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
+    window.addEventListener('beforeunload', () => {
+        flushAutoSaveSync();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushAutoSaveSync();
     });
 }
 
 function saveToGame() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
     syncFormToData();
     const saveBtn = document.getElementById('btn-save');
     try {
         validateRounds(rounds);
         saveBtn.disabled = true;
-        editorStatus.textContent = 'Сохранение…';
+        editorStatus.textContent = 'Сохранение в Firebase…';
 
         GameData.save(rounds, (msg) => {
             editorStatus.textContent = msg;
         }).then(() => {
             dirty = false;
-            updateStatusLine();
+            updateStatusLine('saved');
             showToast('Сохранено! Вопросы и картинки отправлены в Firebase');
         }).catch((err) => {
             showToast(err.message, true);
@@ -210,7 +259,8 @@ function importJson(e) {
             renderRoundTabs();
             renderCategoryList();
             selectRound(rounds[0]?.id || 1);
-            showToast('Импорт OK — нажмите «Сохранить в игру»');
+            scheduleAutoSave();
+            showToast('Импорт OK — сохраняется автоматически');
         } catch (err) {
             showToast(err.message, true);
         }
@@ -353,7 +403,7 @@ function renderRoundTabs() {
 }
 
 function selectRound(id) {
-    syncFormToData();
+    flushAutoSaveSync();
     activeRoundId = id;
     activeCategoryIndex = -1;
     renderRoundTabs();
@@ -383,7 +433,7 @@ function renderCategoryList() {
 }
 
 function selectCategory(index) {
-    syncFormToData();
+    flushAutoSaveSync();
     activeCategoryIndex = index;
     renderCategoryList();
     renderCategoryEditor();
@@ -554,7 +604,8 @@ async function exportEmbeddedImagesToFolder() {
             markDirty();
             updateStatusLine();
             renderCategoryEditor();
-            showToast(`Загружено ${result.uploaded} картинок — нажмите «Сохранить в игру»`);
+            scheduleAutoSave();
+            showToast(`Загружено ${result.uploaded} картинок — сохраняется автоматически`);
         } catch (err) {
             showToast(err.message, true);
             updateStatusLine();
@@ -586,7 +637,8 @@ async function exportEmbeddedImagesToFolder() {
     markDirty();
     updateStatusLine();
     renderCategoryEditor();
-    showToast(`Скачано ${exported} файлов — положите их в папку images/ и нажмите «Сохранить в игру»`);
+    scheduleAutoSave();
+    showToast(`Скачано ${exported} файлов — положите их в папку images/`);
 }
 
 function handleImageUpload(e, cat) {

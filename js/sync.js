@@ -152,7 +152,9 @@ const gameSync = {
         return db.ref(`rooms/${ROOM_CODE}/gameData`).once('value').then((snap) => {
             const rounds = snap.val();
             if (Array.isArray(rounds) && rounds.length && typeof GameData !== 'undefined') {
-                GameData.applyRemoteRounds(rounds);
+                if (!GameData.isCustom()) {
+                    GameData.applyRemoteRounds(rounds);
+                }
             }
             return rounds;
         }).catch((err) => {
