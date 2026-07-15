@@ -139,7 +139,7 @@ const BLANK_GAME_ROUNDS = [
 
 const CUSTOM_GAME_STORAGE_KEY = 'svoyak_custom_game';
 const GAME_DATA_VERSION_KEY = 'svoyak_game_data_version';
-const GAME_DATA_VERSION = 'blank-v3-2026';
+const GAME_DATA_VERSION = 'adult-v1-2026';
 const IMAGES_FOLDER = 'image';
 const GAME_DATA_IDB_NAME = 'svoyak-game-db';
 const GAME_DATA_IDB_STORE = 'rounds';
@@ -312,7 +312,7 @@ function loadGameRounds() {
     const storedVersion = localStorage.getItem(GAME_DATA_VERSION_KEY);
 
     if (storedVersion !== GAME_DATA_VERSION) {
-        const fresh = cloneRounds(BLANK_GAME_ROUNDS);
+        const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
         try {
             persistRounds(fresh);
             idbSaveRounds(fresh).catch(() => {});
@@ -323,7 +323,7 @@ function loadGameRounds() {
     const fromLocal = loadGameRoundsFromLocal();
     if (fromLocal) return fromLocal;
 
-    const fresh = cloneRounds(BLANK_GAME_ROUNDS);
+    const fresh = cloneRounds(DEFAULT_GAME_ROUNDS);
     try { persistRounds(fresh); } catch { /* ignore on init */ }
     return fresh;
 }

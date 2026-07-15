@@ -134,7 +134,7 @@ const gameSync = {
     pushGameData(rounds) {
         if (!Array.isArray(rounds)) return;
         try {
-            localStorage.setItem('svoyak_game_data_version', 'blank-v3-2026');
+            localStorage.setItem('svoyak_game_data_version', 'adult-v1-2026');
         } catch { /* ignore */ }
 
         const db = this._getDb();
