@@ -1,4 +1,4 @@
-/** Загрузка картинок в Firebase Storage — работает на всех устройствах и с Render */
+/** Загрузка картинок в Firebase Storage — работает на всех устройствах */
 
 const FirebaseMedia = {
     _storage: null,

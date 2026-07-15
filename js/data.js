@@ -228,7 +228,7 @@ const BLANK_GAME_ROUNDS = [
 const CUSTOM_GAME_STORAGE_KEY = 'svoyak_custom_game';
 const GAME_DATA_VERSION_KEY = 'svoyak_game_data_version';
 const GAME_DATA_VERSION = 'blank-v3-2026';
-const IMAGES_FOLDER = 'images';
+const IMAGES_FOLDER = 'image';
 const GAME_DATA_IDB_NAME = 'svoyak-game-db';
 const GAME_DATA_IDB_STORE = 'rounds';
 
@@ -305,7 +305,7 @@ function validateNoEmbeddedImages(rounds) {
     if (count > 0) {
         throw new Error(
             `В игре ${count} встроенных картинок (base64) — из‑за них перестают открываться вопросы. ` +
-            'Нажмите «Вынести в папку images» в редакторе или загрузите фото заново.'
+            'Нажмите «Вынести в папку image» в редакторе или загрузите фото заново.'
         );
     }
 }

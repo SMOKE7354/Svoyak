@@ -520,9 +520,9 @@ function renderImageField(field, label, value, index, isAnswer = false) {
         <div class="image-row ${isAnswer ? 'image-row-answer' : ''}">
             <div class="image-field">
                 <label class="field-label">${label}</label>
-                <input type="text" class="ed-input" data-field="${field}" value="${escapeAttr(isDataUrl(value) ? '' : (value || ''))}" placeholder="загрузите файл или images/photo.jpg">
+                <input type="text" class="ed-input" data-field="${field}" value="${escapeAttr(isDataUrl(value) ? '' : (value || ''))}" placeholder="загрузите файл или image/photo.jpg">
                 ${imgPreview}
-                <p class="image-path-hint">При Firebase — загрузка в облако автоматически. Или положите файл в <code>images/</code> на Render.</p>
+                <p class="image-path-hint">При Firebase — загрузка в облако автоматически. Или положите файл в <code>image/</code>.</p>
             </div>
             <label class="image-upload-label">
                 📷 Загрузить
@@ -595,7 +595,7 @@ async function exportEmbeddedImagesToFolder() {
     syncFormToData();
     const embedded = countEmbeddedImages(rounds);
     if (!embedded) {
-        showToast('Встроенных картинок нет — всё уже в Firebase или images/');
+        showToast('Встроенных картинок нет — всё уже в Firebase или image/');
         return;
     }
 
@@ -619,7 +619,7 @@ async function exportEmbeddedImagesToFolder() {
         return;
     }
 
-    if (!confirm(`Скачать ${embedded} файлов и заменить встроенные картинки путями images/…?`)) return;
+    if (!confirm(`Скачать ${embedded} файлов и заменить встроенные картинки путями image/…?`)) return;
 
     let exported = 0;
     for (const r of rounds) {
@@ -644,7 +644,7 @@ async function exportEmbeddedImagesToFolder() {
     updateStatusLine();
     renderCategoryEditor();
     scheduleAutoSave();
-    showToast(`Скачано ${exported} файлов — положите их в папку images/`);
+    showToast(`Скачано ${exported} файлов — положите их в папку image/`);
 }
 
 function readFileAsDataUrl(file) {

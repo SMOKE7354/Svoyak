@@ -233,8 +233,6 @@ function visualStateKey(s) {
         s.currentQuestion?.text,
         s.currentQuestion?.image,
         s.currentQuestion?.answerImage,
-        s.showAnswer,
-        s.showAnswerImage,
         s.roundAnnouncement
     ].join('::');
 }
