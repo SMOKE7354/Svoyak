@@ -205,10 +205,14 @@ function saveToGame() {
 
         GameData.save(rounds, (msg) => {
             editorStatus.textContent = msg;
-        }).then(() => {
+        }).then((result) => {
             dirty = false;
             updateStatusLine('saved');
-            showToast('Сохранено! Вопросы и картинки отправлены в Firebase');
+            if (result && result.firebaseFailed) {
+                showToast('Сохранено локально (ошибка Firebase)', true);
+            } else {
+                showToast('Сохранено! Вопросы и картинки отправлены в Firebase');
+            }
         }).catch((err) => {
             showToast(err.message, true);
             updateStatusLine();

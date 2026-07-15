@@ -110,6 +110,10 @@ const gameSync = {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (err) {
             console.error('localStorage save error:', err);
+            if (err?.name === 'QuotaExceededError' || err?.code === 22) {
+                try { localStorage.removeItem('svoyak_custom_game'); } catch { /* ignore */ }
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* ignore */ }
+            }
         }
 
         if (this.syncMode === 'cloud' && this.mode === 'host' && this._stateRef) {
