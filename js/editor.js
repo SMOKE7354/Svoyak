@@ -281,11 +281,11 @@ function validateRounds(data) {
         if (!r.subtitle) r.subtitle = '';
         if (!r.categories?.length) throw new Error(`Раунд ${i + 1}: нужна хотя бы одна категория`);
         r.categories.forEach((cat, ci) => {
-            if (!cat.name?.trim()) throw new Error(`Раунд ${r.id}, кат. ${ci + 1}: укажите название`);
+            if (!cat.name?.trim()) cat.name = `Категория ${ci + 1}`;
             if (!cat.questions?.length) throw new Error(`«${cat.name}»: добавьте вопросы`);
             cat.questions.forEach((q, qi) => {
-                if (!q.text?.trim()) throw new Error(`«${cat.name}», вопрос ${qi + 1}: пустой текст`);
-                if (!q.answer?.trim()) throw new Error(`«${cat.name}», вопрос ${qi + 1}: пустой ответ`);
+                if (!q.text) q.text = '';
+                if (!q.answer) q.answer = '';
                 if (!q.price) q.price = r.prices?.[qi] || 100;
                 if (!q.id) q.id = `custom_r${r.id}_c${ci}_q${qi}_${q.price}`;
             });
