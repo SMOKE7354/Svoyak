@@ -163,8 +163,8 @@ body {
 }
 #question-price { font-size: 3.5rem; margin-bottom: 20px; color: var(--text-muted); }
 .question-image {
-    max-width: min(420px, 55vw);
-    max-height: 22vh;
+    max-width: min(800px, 80vw);
+    max-height: 45vh;
     border: 1px solid var(--panel-border);
     border-radius: 12px;
     margin-bottom: 16px;
@@ -181,7 +181,7 @@ body {
     margin-bottom: 0;
     animation: answerSlide 0.4s ease forwards;
     border-color: var(--success);
-    max-height: 28vh;
+    max-height: 45vh;
 }
 .image-lightbox {
     position: fixed;
