@@ -19,6 +19,10 @@
         <div class="editor-actions">
             <button type="button" id="btn-save" class="ed-btn ed-btn-primary">💾 Сохранить в игру</button>
             <button type="button" id="btn-export-images" class="ed-btn ed-btn-ghost" title="Загрузить старые встроенные картинки в Firebase">☁️ В Firebase</button>
+            <label class="ed-btn ed-btn-primary ed-btn-file ed-btn-siq" title="Пакет SIGame (.siq)">
+                📦 Импорт .siq
+                <input type="file" id="import-siq-file" accept=".siq,application/zip,application/x-zip-compressed" hidden>
+            </label>
             <button type="button" id="btn-export" class="ed-btn ed-btn-ghost">Экспорт JSON</button>
             <label class="ed-btn ed-btn-ghost ed-btn-file">
                 Импорт JSON
@@ -56,9 +60,10 @@
             </div>
 
             <div class="sidebar-section sidebar-hint">
+                <p><strong>Импорт .siq</strong> — загрузите пакет из SIGame/SIQuester: раунды, темы, вопросы и картинки подтянутся автоматически.</p>
                 <p>Картинки загружаются в <strong>Firebase Storage</strong> — работают на табло и у ведущего без ручного копирования.</p>
                 <p>Папка <strong>image/</strong> — для локальных файлов. Можно и так, и через Firebase.</p>
-                <p>Изменения сохраняются сами — вопросы и ответы не сбросятся.</p>
+                <p>После импорта нажмите <strong>«Сохранить в игру»</strong>, чтобы картинки ушли в облако.</p>
             </div>
         </aside>
 
@@ -96,10 +101,12 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
-    <script src="js/firebase-config.js?v=16"></script>
-    <script src="js/data.js?v=16"></script>
-    <script src="js/sync.js?v=16"></script>
-    <script src="js/firebase-media.js?v=16"></script>
-    <script src="js/editor.js?v=16"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+    <script src="js/firebase-config.js?v=17"></script>
+    <script src="js/data.js?v=17"></script>
+    <script src="js/sync.js?v=17"></script>
+    <script src="js/firebase-media.js?v=17"></script>
+    <script src="js/siq-parser.js?v=17"></script>
+    <script src="js/editor.js?v=17"></script>
 </body>
 </html>
