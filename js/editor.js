@@ -153,6 +153,8 @@ function bindGlobalActions() {
     document.getElementById('btn-export-images').addEventListener('click', exportEmbeddedImagesToFolder);
     document.getElementById('btn-export').addEventListener('click', exportJson);
     document.getElementById('import-file').addEventListener('change', importJson);
+    document.getElementById('import-siq-file').addEventListener('change', importSiq);
+    setupSiqDropZone();
     document.getElementById('btn-add-category').addEventListener('click', addCategory);
     document.getElementById('btn-delete-category').addEventListener('click', deleteCategory);
     document.getElementById('btn-add-round').addEventListener('click', addRound);
@@ -271,6 +273,96 @@ function importJson(e) {
     };
     reader.readAsText(file);
     e.target.value = '';
+}
+
+async function importSiq(e) {
+    const file = e.target?.files?.[0] || e.dataTransfer?.files?.[0];
+    if (e.target) e.target.value = '';
+    if (!file) return;
+
+    if (!/\.siq$/i.test(file.name)) {
+        showToast('Перетащите файл .siq из SIGame', true);
+        return;
+    }
+
+    await loadSiqFile(file);
+}
+
+function setupSiqDropZone() {
+    const zone = document.querySelector('.editor-main');
+    if (!zone) return;
+
+    zone.addEventListener('dragover', (e) => {
+        if (![...e.dataTransfer?.types || []].includes('Files')) return;
+        e.preventDefault();
+        zone.classList.add('siq-drop-active');
+    });
+
+    zone.addEventListener('dragleave', (e) => {
+        if (e.currentTarget === zone) zone.classList.remove('siq-drop-active');
+    });
+
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('siq-drop-active');
+        const file = e.dataTransfer?.files?.[0];
+        if (!file) return;
+        loadSiqFile(file);
+    });
+}
+
+async function loadSiqFile(file) {
+    if (typeof SiqParser === 'undefined') {
+        showToast('Модуль SIQ не загружен — обновите страницу', true);
+        return;
+    }
+
+    editorStatus.textContent = 'Импорт .siq…';
+    editorStatus.classList.add('status-saving');
+
+    try {
+        const { rounds: imported, meta } = await SiqParser.parseSiqFile(file, (msg) => {
+            editorStatus.textContent = msg;
+        });
+
+        validateRounds(imported);
+        rounds = imported;
+        dirty = true;
+        activeCategoryIndex = -1;
+        activeRoundId = rounds[0]?.id || 1;
+        renderRoundTabs();
+        renderCategoryList();
+        selectRound(activeRoundId);
+        scheduleAutoSave();
+
+        const summary = [
+            meta.packageName,
+            `${meta.rounds} раунд(ов)`,
+            `${meta.themes} тем`,
+            `${meta.questions} вопросов`,
+            meta.images ? `${meta.images} картинок` : null
+        ].filter(Boolean).join(' · ');
+
+        showToast(`Пакет загружен: ${summary}`);
+        updateStatusLine('saved');
+
+        if (meta.truncatedCategories || meta.truncatedRounds) {
+            const parts = [];
+            if (meta.truncatedRounds) parts.push(`раундов обрезано: ${meta.truncatedRounds}`);
+            if (meta.truncatedCategories) parts.push(`тем обрезано: ${meta.truncatedCategories}`);
+            setTimeout(() => showToast(`Лимит редактора — ${parts.join(', ')}`, true), 2800);
+        }
+
+        if (meta.images > 0) {
+            setTimeout(() => {
+                showToast('Нажмите «Сохранить в игру», чтобы загрузить картинки в Firebase', false);
+            }, 3200);
+        }
+    } catch (err) {
+        console.error('SIQ import failed:', err);
+        showToast(err.message || 'Не удалось импортировать .siq', true);
+        updateStatusLine();
+    }
 }
 
 function validateRounds(data) {
