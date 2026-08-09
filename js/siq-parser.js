@@ -51,10 +51,38 @@ const SiqParser = (() => {
 
     function blobToDataUrl(blob) {
         return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error('Не удалось прочитать медиафайл'));
-            reader.readAsDataURL(blob);
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let w = img.width;
+                let h = img.height;
+                const max = 1000;
+                if (w > max || h > max) {
+                    if (w > h) {
+                        h = Math.round(h * max / w);
+                        w = max;
+                    } else {
+                        w = Math.round(w * max / h);
+                        h = max;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                // fallback to FileReader for non-image blobs or SVG
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Не удалось прочитать медиафайл'));
+                reader.readAsDataURL(blob);
+            };
+            img.src = url;
         });
     }
 
@@ -77,25 +105,32 @@ const SiqParser = (() => {
         const entries = Object.values(zip.files).filter(f => !f.dir);
         let done = 0;
 
-        for (const entry of entries) {
-            const path = entry.name.replace(/\\/g, '/');
-            if (!IMAGE_EXT.test(path)) {
+        const CHUNK_SIZE = 10;
+        for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+            const chunk = entries.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(async (entry) => {
+                const path = entry.name.replace(/\\/g, '/');
+                if (!IMAGE_EXT.test(path)) {
+                    done++;
+                    return;
+                }
+                try {
+                    const blob = await entry.async('blob');
+                    const dataUrl = await blobToDataUrl(blob);
+                    registerMediaKey(map, path, dataUrl);
+                    registerMediaKey(map, zipEntryBaseName(path), dataUrl);
+
+                    const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+                    const fileName = zipEntryBaseName(path);
+                    registerMediaKey(map, `${folder}/${escapeUriString(fileName)}`, dataUrl);
+                    registerMediaKey(map, `Images/${fileName}`, dataUrl);
+                    registerMediaKey(map, `Images/${escapeUriString(fileName)}`, dataUrl);
+                } catch (e) {
+                    console.error('Failed to process image:', path, e);
+                }
                 done++;
-                continue;
-            }
-            const blob = await entry.async('blob');
-            const dataUrl = await blobToDataUrl(blob);
-            registerMediaKey(map, path, dataUrl);
-            registerMediaKey(map, zipEntryBaseName(path), dataUrl);
-
-            const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
-            const fileName = zipEntryBaseName(path);
-            registerMediaKey(map, `${folder}/${escapeUriString(fileName)}`, dataUrl);
-            registerMediaKey(map, `Images/${fileName}`, dataUrl);
-            registerMediaKey(map, `Images/${escapeUriString(fileName)}`, dataUrl);
-
-            done++;
-            if (onProgress && done % 3 === 0) {
+            }));
+            if (onProgress) {
                 onProgress(`Медиа: ${done}/${entries.length}`);
             }
         }
@@ -326,7 +361,7 @@ const SiqParser = (() => {
 
     function normalizeQuestions(questions, roundId, catIndex, roundPrices) {
         const valid = questions
-            .filter(q => q.price > 0 && (q.text || q.answer || q.image))
+            .filter(q => q.price > 0 && (q.text || q.answer || q.image || q.answerImage))
             .sort((a, b) => a.price - b.price);
 
         const prices = valid.length

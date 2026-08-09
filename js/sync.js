@@ -24,8 +24,8 @@ function normalizeState(raw) {
     return {
         ...base,
         ...raw,
-        players: Array.isArray(raw.players) ? raw.players : [],
-        playedQuestions: Array.isArray(raw.playedQuestions) ? raw.playedQuestions : []
+        players: Array.isArray(raw.players) ? raw.players : (raw.players && typeof raw.players === 'object' ? Object.values(raw.players) : []),
+        playedQuestions: Array.isArray(raw.playedQuestions) ? raw.playedQuestions : (raw.playedQuestions && typeof raw.playedQuestions === 'object' ? Object.values(raw.playedQuestions) : [])
     };
 }
 
