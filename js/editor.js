@@ -23,6 +23,16 @@ const editorStatus = document.getElementById('editor-status');
 const toast = document.getElementById('toast');
 
 async function init() {
+    // Обновляем ссылки в меню
+    const urlParams = new URLSearchParams(window.location.search);
+    const room = urlParams.get('room');
+    if (room) {
+        const navHost = document.getElementById('nav-host');
+        if (navHost) navHost.href = 'host.html?room=' + encodeURIComponent(room);
+        const navDisplay = document.getElementById('nav-display');
+        if (navDisplay) navDisplay.href = 'display.html?room=' + encodeURIComponent(room);
+    }
+
     const hasLocal = await GameData.reloadAsync();
 
     if (!hasLocal && typeof gameSync !== 'undefined' && gameSync.pullGameData) {
@@ -231,6 +241,12 @@ function resetToBlank() {
     if (!confirm('Удалить все темы, вопросы и ответы? Останется один пустой раунд.')) return;
     GameData.resetToBlank();
     rounds = deepClone(GameData.getRounds());
+    
+    // Очищаем старые данные лобби/состояния игры
+    if (typeof gameSync !== 'undefined' && gameSync.reset) {
+        gameSync.reset();
+    }
+
     dirty = false;
     activeCategoryIndex = -1;
     updateStatusLine();
@@ -260,6 +276,12 @@ function importJson(e) {
             const parsed = JSON.parse(reader.result);
             validateRounds(parsed);
             rounds = parsed;
+            
+            // Очищаем старые данные лобби/состояния игры
+            if (typeof gameSync !== 'undefined' && gameSync.reset) {
+                gameSync.reset();
+            }
+
             dirty = true;
             activeCategoryIndex = -1;
             renderRoundTabs();
@@ -330,6 +352,12 @@ async function loadSiqFile(file) {
         dirty = true;
         activeCategoryIndex = -1;
         activeRoundId = rounds[0]?.id || 1;
+        
+        // Очищаем старые данные лобби/состояния игры при загрузке нового пака
+        if (typeof gameSync !== 'undefined' && gameSync.reset) {
+            gameSync.reset();
+        }
+
         renderRoundTabs();
         renderCategoryList();
         selectRound(activeRoundId);

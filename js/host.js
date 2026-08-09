@@ -52,6 +52,15 @@ function onGameDataUpdated() {
 }
 
 function init() {
+    // Обновляем отображение кода лобби и ссылки
+    const roomCodeEls = document.querySelectorAll('.host-room-code');
+    roomCodeEls.forEach(el => el.textContent = typeof ROOM_CODE !== 'undefined' ? ROOM_CODE : 'SVOYAK');
+    
+    const editorLink = document.getElementById('host-editor-link');
+    if (editorLink && typeof ROOM_CODE !== 'undefined') {
+        editorLink.href = 'editor.html?room=' + encodeURIComponent(ROOM_CODE);
+    }
+
     state = gameSync.load();
     setupEventListeners();
 

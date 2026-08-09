@@ -43,6 +43,12 @@ const finaleWinners = document.getElementById('finale-winners');
 let showingRoundSplash = false;
 
 function init() {
+    // Обновляем коды лобби в UI
+    const displayRoomCode = document.getElementById('display-room-code');
+    if (displayRoomCode) displayRoomCode.textContent = typeof ROOM_CODE !== 'undefined' ? ROOM_CODE : 'SVOYAK';
+    const lobbyRoomCode = document.getElementById('lobby-room-code');
+    if (lobbyRoomCode) lobbyRoomCode.textContent = typeof ROOM_CODE !== 'undefined' ? ROOM_CODE : 'SVOYAK';
+
     setupConnectUI();
     setupImageLightbox();
     connectToGame();

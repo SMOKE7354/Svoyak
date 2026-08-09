@@ -137,8 +137,11 @@ const BLANK_GAME_ROUNDS = [
     }
 ];
 
-const CUSTOM_GAME_STORAGE_KEY = 'svoyak_custom_game';
-const GAME_DATA_VERSION_KEY = 'svoyak_game_data_version';
+const urlParamsData = new URLSearchParams(window.location.search);
+const ROOM_CODE = urlParamsData.get('room')?.toUpperCase() || 'SVOYAK';
+
+const CUSTOM_GAME_STORAGE_KEY = `svoyak_custom_game_${ROOM_CODE}`;
+const GAME_DATA_VERSION_KEY = `svoyak_game_data_version_${ROOM_CODE}`;
 const GAME_DATA_VERSION = 'adult-v1-2026';
 const IMAGES_FOLDER = 'image';
 const GAME_DATA_IDB_NAME = 'svoyak-game-db';

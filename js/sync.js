@@ -1,5 +1,4 @@
-const STORAGE_KEY = 'gameState';
-const ROOM_CODE = 'SVOYAK';
+const STORAGE_KEY = `gameState_${ROOM_CODE}`;
 
 function createInitialState() {
     return {
@@ -111,8 +110,8 @@ const gameSync = {
         } catch (err) {
             console.error('localStorage save error:', err);
             if (err?.name === 'QuotaExceededError' || err?.code === 22) {
-                try { localStorage.removeItem('svoyak_custom_game'); } catch { /* ignore */ }
-                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* ignore */ }
+                // Если не хватает места, просто логируем. Раньше здесь удалялся кастомный пак (svoyak_custom_game), что вызывало сброс игры.
+                console.warn('Не удалось сохранить состояние игры в localStorage из-за нехватки места.');
             }
         }
 
