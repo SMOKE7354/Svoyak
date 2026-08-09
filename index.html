@@ -3,96 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Свояк — Игровой экран</title>
+    <title>Свояк — Лобби</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        .hub-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+        }
+        .hub-panel {
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        .hub-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.5rem;
+            text-align: center;
+            text-transform: uppercase;
+            background: #1a1a1a;
+            border: 2px solid var(--panel-border);
+            color: var(--text-main);
+            border-radius: 8px;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+        }
+        .hub-input:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+        .hub-roles {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .hub-btn {
+            padding: 15px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .hub-btn-display { background: var(--accent); color: #000; }
+        .hub-btn-host { background: var(--success); color: #fff; }
+        .hub-btn-editor { background: #333; color: #fff; border: 1px solid var(--panel-border); }
+        .hub-btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+    </style>
 </head>
-<body class="display-body">
-    <!-- Connect Screen -->
-    <div id="connect-screen" class="screen active">
-        <div class="display-wait glass-panel">
-            <h1 class="glow-text">СВОЯ ИГРА</h1>
-            <p class="subtitle display-hint">Экран для зрителей</p>
-            <div class="room-join">
-                <p class="fixed-room-code">Код игры: <strong>SVOYAK</strong></p>
-                <button id="connect-btn" class="btn primary btn-large">Подключиться к игре</button>
-                <p id="connect-status" class="connect-status"></p>
-            </div>
-            <p class="setup-tip">Сначала откройте панель ведущего на другом ноутбуке:<br>
-                <a href="host.html" class="host-link">host.html</a> (та же ссылка, только /host.html)
-            </p>
-        </div>
-    </div>
-
-    <!-- Waiting Screen (TV) -->
-    <div id="lobby-screen" class="screen hidden">
-        <div class="display-wait glass-panel">
-            <h1 class="glow-text">СВОЯ ИГРА</h1>
-            <p class="subtitle display-hint">Экран для зрителей</p>
-            <div id="display-status" class="display-status">
-                <div class="pulse-dot"></div>
-                <span>Ожидание ведущего…</span>
-            </div>
-            <div id="display-players-preview" class="display-players-preview hidden"></div>
-            <p class="setup-tip">Код игры: <strong>SVOYAK</strong></p>
-        </div>
-    </div>
-
-    <!-- Round Announcement -->
-    <div id="round-screen" class="screen hidden">
-        <div id="round-curtain" class="round-curtain">
-            <div class="round-splash">
-                <div id="round-number" class="round-number">1</div>
-                <h1 id="round-title" class="glow-text">Раунд 1</h1>
-                <p id="round-subtitle" class="round-subtitle">Разминка</p>
+<body>
+    <div class="hub-container">
+        <div class="glass-panel hub-panel">
+            <h1 class="glow-text" style="margin-bottom: 10px;">СВОЯ ИГРА</h1>
+            <p class="subtitle">Введите код лобби для подключения или создания</p>
+            
+            <input type="text" id="room-input" class="hub-input" placeholder="КОД ЛОББИ" value="SVOYAK" maxlength="10">
+            
+            <div class="hub-roles">
+                <button class="hub-btn hub-btn-display" onclick="joinRole('display')">📺 Экран зрителей (Табло)</button>
+                <button class="hub-btn hub-btn-host" onclick="joinRole('host')">🎤 Панель ведущего</button>
+                <button class="hub-btn hub-btn-editor" onclick="joinRole('editor')">✏️ Редактор вопросов</button>
             </div>
         </div>
     </div>
 
-    <!-- Game Board -->
-    <div id="board-screen" class="screen hidden">
-        <div class="board-header">
-            <span id="board-round-badge" class="round-badge">Раунд 1</span>
-        </div>
-        <div class="board-container">
-            <div id="grid" class="grid"></div>
-        </div>
-        <div id="players-scores" class="players-scores"></div>
-    </div>
-
-    <!-- Question Screen -->
-    <div id="question-screen" class="screen hidden">
-        <div class="question-container glass-panel">
-            <div id="question-category" class="question-category"></div>
-            <h2 id="question-price" class="glow-text gold">100</h2>
-            <img id="question-image" class="question-image hidden" src="" alt="">
-            <p id="question-text" class="question-text">Текст вопроса…</p>
-            <p id="question-answer-display" class="question-answer hidden"></p>
-            <img id="question-answer-image" class="question-image question-answer-image hidden" src="" alt="">
-            <div id="timer-display" class="timer-display hidden">30</div>
-        </div>
-        <div id="players-scores-question" class="players-scores"></div>
-    </div>
-
-    <!-- Game Over -->
-    <div id="finale-screen" class="screen hidden">
-        <div class="finale-panel glass-panel">
-            <h1 class="glow-text">ИГРА ОКОНЧЕНА</h1>
-            <div id="finale-winners" class="finale-winners"></div>
-        </div>
-    </div>
-
-    <div id="effects-overlay" class="effects-overlay hidden"></div>
-    <div id="image-lightbox" class="image-lightbox hidden" aria-hidden="true">
-        <button type="button" class="image-lightbox-close" aria-label="Закрыть">×</button>
-        <img id="image-lightbox-img" src="" alt="">
-    </div>
-
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-    <script src="js/firebase-config.js?v=14"></script>
-    <script src="js/data.js?v=14"></script>
-    <script src="js/sync.js?v=14"></script>
-    <script src="js/app.js?v=14"></script>
+    <script>
+        function joinRole(role) {
+            const roomCode = document.getElementById('room-input').value.trim().toUpperCase() || 'SVOYAK';
+            const params = '?room=' + encodeURIComponent(roomCode);
+            
+            if (role === 'display') window.location.href = 'display.html' + params;
+            else if (role === 'host') window.location.href = 'host.html' + params;
+            else if (role === 'editor') window.location.href = 'editor.html' + params;
+        }
+    </script>
 </body>
 </html>
