@@ -66,13 +66,13 @@ function updateStatusLine(mode) {
         editorStatus.textContent = custom ? 'Сохранено — ваша игра' : 'Сохранено';
         editorStatus.classList.add('status-saved');
         if (embedded > 0) {
-            editorStatus.textContent += ` · ⚠ ${embedded} встроенных картинок`;
+            editorStatus.textContent += ` · Внимание: ${embedded} встроенных картинок`;
             editorStatus.classList.add('status-warn');
         }
         return;
     }
     if (embedded > 0) {
-        editorStatus.textContent = `⚠ ${embedded} встроенных картинок — «Сохранить» или «В Firebase»`;
+        editorStatus.textContent = `Внимание: ${embedded} встроенных картинок — «Сохранить» или «В Firebase»`;
         editorStatus.classList.add('status-warn');
         return;
     }
@@ -638,7 +638,7 @@ function renderImageField(field, label, value, index, isAnswer = false) {
     const previewSrc = value ? (isDataUrl(value) ? value : resolveImageSrc(value)) : '';
     const imgPreview = previewSrc
         ? `<div class="image-preview-wrap"><img class="image-preview" src="${escapeAttr(previewSrc)}" alt=""></div>`
-        : (isDataUrl(value) ? '<p class="image-embed-warn">⚠ Картинка сохранена локально — для облака нажмите «В Firebase»</p>' : '');
+        : (isDataUrl(value) ? '<p class="image-embed-warn">Внимание: Картинка сохранена локально — для облака нажмите «В Firebase»</p>' : '');
 
     return `
         <div class="image-row ${isAnswer ? 'image-row-answer' : ''}">
@@ -649,7 +649,7 @@ function renderImageField(field, label, value, index, isAnswer = false) {
                 <p class="image-path-hint">При Firebase — загрузка в облако автоматически. Или положите файл в <code>image/</code>.</p>
             </div>
             <label class="image-upload-label">
-                📷 Загрузить
+                Загрузить
                 <input type="file" accept="image/*" data-upload-index="${index}" data-upload-field="${field}" hidden>
             </label>
         </div>

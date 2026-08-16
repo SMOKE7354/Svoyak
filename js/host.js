@@ -581,7 +581,7 @@ function renderQuestion() {
     if (showAnswerImageBtn) {
         showAnswerImageBtn.classList.toggle('hidden', !q.answerImage);
         showAnswerImageBtn.disabled = !!state.showAnswerImage;
-        showAnswerImageBtn.textContent = state.showAnswerImage ? '🖼 На табло' : '🖼 Картинка ответа';
+        showAnswerImageBtn.textContent = state.showAnswerImage ? 'На табло' : 'Картинка ответа';
     }
 
     updateTimerUI();
