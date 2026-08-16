@@ -407,7 +407,7 @@ body {
     opacity: 1; background: rgba(255, 215, 0, 0.2);
 }
 .effects-overlay.applause::after {
-    content: '👏👏 БРАВО! 👏👏'; color: var(--gold);
+    content: 'БРАВО!'; color: var(--gold);
 }
 
 @keyframes popIn {
