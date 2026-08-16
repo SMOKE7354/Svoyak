@@ -969,3 +969,5 @@
     font-size: 0.65rem;
     margin: 0 0.1rem;
 }
+
+/* Override creator signature color for host if needed, although style.css should work */
