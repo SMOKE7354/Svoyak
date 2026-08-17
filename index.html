@@ -100,56 +100,84 @@
 </head>
 <body>
     <div class="hub-container">
-        <div class="glass-panel hub-panel">
+        <div class="glass-panel hub-panel" id="auth-panel">
             <h1 class="glow-text" style="margin-bottom: 15px; font-size: 3rem;">СВОЯ ИГРА</h1>
-            <p class="subtitle" style="font-size: 1.1rem; margin-bottom: 30px;">Введите название лобби и нажмите Enter для запуска игры</p>
+            <p class="subtitle" style="font-size: 1.1rem; margin-bottom: 30px;">Введите ключ доступа для продолжения</p>
             
-            <input type="text" id="room-input" class="hub-input" placeholder="НАЗВАНИЕ ЛОББИ" value="SVOYAK" maxlength="15" autocomplete="off">
+            <input type="text" id="key-input" class="hub-input" placeholder="КЛЮЧ ДОСТУПА" autocomplete="off">
             
             <div class="hub-roles">
-                <button class="hub-btn hub-btn-create" onclick="createLobby()">Запустить лобби</button>
-                
-                <div class="divider">или присоединиться</div>
-                
-                <button class="hub-btn hub-btn-display" onclick="joinRole('display')">Экран зрителей</button>
-                <button class="hub-btn hub-btn-host" onclick="joinRole('host')">Панель ведущего</button>
-                <button class="hub-btn hub-btn-editor" onclick="joinRole('editor')">Редактор вопросов</button>
+                <button class="hub-btn hub-btn-create" onclick="checkKey()">Войти</button>
+            </div>
+            <p id="error-message" style="color: #ff4444; display: none; margin-top: 15px;"></p>
+        </div>
+
+        <div class="glass-panel hub-panel" id="lobby-panel" style="display: none;">
+            <h1 class="glow-text" style="margin-bottom: 15px; font-size: 3rem;">УСПЕШНО</h1>
+            <p class="subtitle" style="font-size: 1.2rem; margin-bottom: 15px;">Ваше лобби:</p>
+            <h2 id="lobby-name" style="font-size: 2.5rem; color: var(--accent); margin-bottom: 30px; letter-spacing: 2px;"></h2>
+            
+            <div class="hub-roles">
+                <button class="hub-btn hub-btn-create" onclick="launchLobby()">Запустить игру</button>
             </div>
         </div>
     </div>
 
     <script>
-        const roomInput = document.getElementById('room-input');
+        // Хэши ключей (SHA-256). Украсть сами ключи из этого кода невозможно!
+        const validHashes = {
+            'd4273a0e90cf9b5781de189fb80cce906f8cbf35fdb9e4ea89a1f39d52cdea80': 'svoyak-1',
+            'ac4226a3a6d066dac53cf0755063579b9e1b56971943efed6a003cb23cf80027': 'svoyak-2',
+            'da2d6978104d30fb1074dc22aad55ae1692f48a9453505e1161df4ed19578860': 'svoyak-3',
+            'abbc90d8ed7d0d576a47abb5951cbf40743e304425de8443a427b07912ff2455': 'svoyak-4',
+            '1f6a3784ef080a83a3d9b0b920ab35bba212eda7206ff553afe4279698909aa2': 'svoyak-5'
+        };
+        let currentLobby = '';
 
-        roomInput.addEventListener('keydown', function(event) {
+        // Функция для создания SHA-256 хэша
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        const keyInput = document.getElementById('key-input');
+        keyInput.addEventListener('keydown', function(event) {
             if (event.key === 'Enter') {
-                createLobby();
+                checkKey();
             }
         });
 
-        function getRoomCode() {
-            return roomInput.value.trim().toUpperCase() || 'SVOYAK';
+        async function checkKey() {
+            const key = keyInput.value.trim().toUpperCase();
+            const errorMsg = document.getElementById('error-message');
+            
+            // Хэшируем введенный пользователем ключ
+            const hash = await sha256(key);
+            
+            if (validHashes[hash]) {
+                currentLobby = validHashes[hash];
+                document.getElementById('auth-panel').style.display = 'none';
+                document.getElementById('lobby-panel').style.display = 'block';
+                document.getElementById('lobby-name').textContent = currentLobby.toUpperCase();
+            } else {
+                errorMsg.textContent = 'Неверный ключ доступа!';
+                errorMsg.style.display = 'block';
+                setTimeout(() => { errorMsg.style.display = 'none'; }, 3000);
+            }
         }
 
-        function createLobby() {
-            const roomCode = getRoomCode();
-            const params = '?room=' + encodeURIComponent(roomCode);
+        function launchLobby() {
+            if (!currentLobby) return;
+            const params = '?room=' + encodeURIComponent(currentLobby);
             
-            // Open editor and display in new tabs
+            // Открываем редактор и экран в новых вкладках
             window.open('editor.html' + params, '_blank');
             window.open('display.html' + params, '_blank');
             
-            // Navigate current tab to host
+            // Текущую вкладку переводим на панель ведущего
             window.location.href = 'host.html' + params;
-        }
-
-        function joinRole(role) {
-            const roomCode = getRoomCode();
-            const params = '?room=' + encodeURIComponent(roomCode);
-            
-            if (role === 'display') window.location.href = 'display.html' + params;
-            else if (role === 'host') window.location.href = 'host.html' + params;
-            else if (role === 'editor') window.location.href = 'editor.html' + params;
         }
     </script>
 
